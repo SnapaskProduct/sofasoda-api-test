@@ -1,4 +1,4 @@
-# pyresttest-api-test
+# sofasoda-api-test
 pyresttest API test scripts with slack bot
 
 1. Install pyresttest
