@@ -1,0 +1,1401 @@
+---
+- config:
+    - testset:                        "Snapask UAT test for TW student testsuite"
+    - variable_binds:                 {Username: 'tw_stu_120384_02',tut_Username: 'tw_tut_120346_01', Password: 'Password', SubjectsID: '20', TopicsID: '82', DeviceID: '23eedf09c41d20ba', DeviceToken: 'fKlcrZgmJOE%3AAPA91bFcsvPICmRac42S35jx7VcoNvwU-gN75bYt9Q0ZfM9V0FtBEkjsIGo1Jru-Gu4m3998vfqoOtHDV1Zhwh9IG4BJ_CnU4Sdkv45CLytn-q1Mq5JG-AUiEV7AxkRXYPsk5oIh1PCv', DefaultAuthToken: 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX3Nlc3Npb25faWQiOjY2ODI3LCJ1c2VyX2FnZW50Ijp7ImRldmljZV9pZCI6IjIzZWVkZjA5YzQxZDIwYmEiLCJvcyI6ImFuZHJvaWQiLCJwbGF0Zm9ybSI6ImFwcCJ9LCJpc3MiOiJTbmFwYXNrIENvLiwgTHRkLiB8IFVBVCJ9.DtLwhhBkGkJO4PDoVn9nO2IuhYvTSsdiOiXpH65Qy_w'}
+    - generators:  
+        # Generator named 'QuestionMsg' which is used for question message
+        - 'QuestionMsg':              {type: 'random_text', characters: abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890, min_length: 50, max_length: 80}
+    - timeout:                         5
+#TW student default config, simulate Android login with stastic Username/Password/QZ_subject/QZ_topic/DeviceID/DeviceToken and an expired AuthToken.
+
+
+###############################################################
+############## UAT Android login testsuite START ##############
+###############################################################
+- test:
+    - group:                          "UAT Android login testsuite"
+    - name:                           "app_launch before login"
+    - url:                            "/api/v2/app_launch"
+    - method:                         "POST"
+    - headers:                        {template: {'Snapask-Authorization': 'Bearer $DefaultAuthToken','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+    - expected_status:                [403,404]
+    - validators:
+        - compare:                    {jsonpath_mini: "status", comparator: "str_eq", expected: 'error'}
+        - extract_test:               {jsonpath_mini: "error_code",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "response",  test: "exists"}
+#Login with expired AuthToken and expect to see login fail.
+
+- test:
+    - group:                          "UAT Android login testsuite"
+    - name:                           "student login"
+    - url:                            "/api/v3/on_board/login"
+    - method:                         "POST"
+    - body:                           {template: '{"password": "$Password","username_or_email": "$Username","device_type": "android","lang": "en-HK"}'}
+    - headers:                        {template: {'Content-Type': 'application/json','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+    - extract_binds:
+        - 'AuthToken':                {'jsonpath_mini': 'data.jwt'}
+        - 'SnapaskUID':               {'jsonpath_mini': 'data.id'}
+        - 'Email':                    {'jsonpath_mini': 'data.email'}
+        - 'CountryCode':              {'jsonpath_mini': 'data.country_code'}
+        - 'FirstName':                {'jsonpath_mini': 'data.first_name'}
+        - 'LastName':                 {'jsonpath_mini': 'data.last_name'}
+        - 'Dob':                      {'jsonpath_mini': 'data.dob'}
+        - 'Gender':                   {'jsonpath_mini': 'data.gender'}
+        - 'Phone':                    {'jsonpath_mini': 'data.phone'}
+        - 'ProfilePicUrl':            {'jsonpath_mini': 'data.profile_pic_url'}
+        - 'TermsOfService':           {'jsonpath_mini': 'data.terms_of_service'}
+        - 'RegionId':                 {'jsonpath_mini': 'data.region.id'}
+        - 'RegionName':               {'jsonpath_mini': 'data.region.name'}
+        - 'RegionFullName':           {'jsonpath_mini': 'data.region.full_name'}
+        - 'RegionWaitingList':        {'jsonpath_mini': 'data.region.enable_waiting_list'}
+        - 'RegionQuiz':               {'jsonpath_mini': 'data.region.is_have_quiz'}
+    - validators:
+        - compare:                    {jsonpath_mini: "status", comparator: "str_eq", expected: 'success'}
+        - extract_test:               {jsonpath_mini: "data.id",  test: "exists"}
+        - compare:                    {jsonpath_mini: "data.email", comparator: "contains", expected: '@'}
+        - compare:                    {jsonpath_mini: "data.country_code", comparator: "gt", expected: 0}
+        - compare:                    {jsonpath_mini: "data.username", comparator: "str_eq", expected: {template: $Username}}
+        - extract_test:               {jsonpath_mini: "data.phone",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.profile_pic_url",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.referral_code",  test: "exists"}
+        - compare:                    {jsonpath_mini: "data.region.name", comparator: "str_eq", expected: 'tw'}
+        - compare:                    {jsonpath_mini: "data.region.full_name", comparator: "str_eq", expected: 'Taiwan'}
+        - extract_test:               {jsonpath_mini: "data.region.enable_waiting_list",  test: "exists"}
+        - compare:                    {jsonpath_mini: "data.region.is_have_quiz", comparator: "eq", expected: true}
+        - compare:                    {jsonpath_mini: "data.region.id", comparator: "eq", expected: 2}
+        - compare:                    {jsonpath_mini: "data.role.name", comparator: "str_eq", expected: "student"}
+#Login with student account and get AuthToken for following testcases to use. Also save the login info to verify in app_launch.
+
+- test:
+    - group:                          "UAT Android login testsuite"
+    - name:                           "tutor login"
+    - url:                            "/api/v3/on_board/login"
+    - method:                         "POST"
+    - body:                           {template: '{"password": "$Password","username_or_email": "$tut_Username","device_type": "android","lang": "en-HK"}'}
+    - headers:                        {template: {'Content-Type': 'application/json','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+    - extract_binds:
+        - 'tut_SnapaskUID':           {'jsonpath_mini': 'data.id'}
+        - 'tut_Email':                {'jsonpath_mini': 'data.email'}
+        - 'tut_AuthToken':            {'jsonpath_mini': 'data.jwt'}
+#Login with tutor account and get AuthToken for following testcases to use.
+
+- test:
+    - group:                          "UAT Android login testsuite"
+    - name:                           "check app_launch"
+    - url:                            "/api/v2/app_launch"
+    - method:                         "POST"
+    - body:                           '{"lang": "en-HK"}'
+    - headers:                        {template: {'Content-Type': 'application/json','Snapask-Authorization': 'Bearer $AuthToken','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+    - extract_binds:
+        - 'AvailableQuota':           {'jsonpath_mini': 'data.available_quota'}
+        - 'SubscriptionQuota':        {'jsonpath_mini': 'data.subscription_quota'}
+        - 'WithoutSubscriptionQuota': {'jsonpath_mini': 'data.without_subscription_quota'}
+        - 'DisablePost':              {'jsonpath_mini': 'data.user.disable_post'}
+        - 'ReferralCode':             {'jsonpath_mini': 'data.user.referral_code'}
+    - validators:
+        - compare:                    {jsonpath_mini: "status", comparator: "str_eq", expected: 'success'}
+        - compare:                    {jsonpath_mini: "data.available_quota", comparator: "ge", expected: 0}
+#        - compare:                    {jsonpath_mini: "data.extra_quota_by_verify", comparator: "ge", expected: 0}
+        - compare:                    {jsonpath_mini: "data.subscription_quota", comparator: "ge", expected: 0}
+        - compare:                    {jsonpath_mini: "data.without_subscription_quota", comparator: "ge", expected: 0}
+        - compare:                    {jsonpath_mini: "data.user.snapask_uid", comparator: "str_eq", expected: {template: $SnapaskUID}}
+        - compare:                    {jsonpath_mini: "data.user.email", comparator: "str_eq", expected: {template: $Email}}
+        - extract_test:               {jsonpath_mini: "data.user.confirmed_at",  test: "exists"}
+        - compare:                    {jsonpath_mini: "data.user.country_code", comparator: "str_eq", expected: {template: $CountryCode}}
+        - compare:                    {jsonpath_mini: "data.user.phone", comparator: "str_eq", expected: {template: $Phone}}
+        - compare:                    {jsonpath_mini: "data.user.profile_pic_url", comparator: "str_eq", expected: {template: $ProfilePicUrl}}
+        - compare:                    {jsonpath_mini: "data.user.dob", comparator: "str_eq", expected: {template: $Dob}}
+        - compare:                    {jsonpath_mini: "data.user.gender", comparator: "str_eq", expected: {template: $Gender}}
+        - compare:                    {jsonpath_mini: "data.user.terms_of_service", comparator: "str_eq", expected: {template: $TermsOfService}}
+        - compare:                    {jsonpath_mini: "data.user.role.name", comparator: "str_eq", expected: "Student"}
+        - compare:                    {jsonpath_mini: "data.user.first_name", comparator: "str_eq", expected: {template: $FirstName}}
+        - compare:                    {jsonpath_mini: "data.user.last_name", comparator: "str_eq", expected: {template: $LastName}}
+        - compare:                    {jsonpath_mini: "data.user.username", comparator: "str_eq", expected: {template: $Username}}
+        - compare:                    {jsonpath_mini: "data.user.region.id", comparator: "str_eq", expected: {template: $RegionId}}
+        - compare:                    {jsonpath_mini: "data.user.region.name", comparator: "str_eq", expected: {template: $RegionName}}
+        - compare:                    {jsonpath_mini: "data.user.region.full_name", comparator: "str_eq", expected: {template: $RegionFullName}}
+        - compare:                    {jsonpath_mini: "data.user.region.enable_waiting_list", comparator: "str_eq", expected: {template: $RegionWaitingList}}
+        - compare:                    {jsonpath_mini: "data.user.region.is_have_quiz", comparator: "str_eq", expected: {template: $RegionQuiz}}
+        - extract_test:               {jsonpath_mini: "data.user.school_type",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.user.school_type",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.user.grade_level",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.user.grade_level",  test: "exists"}
+        - compare:                    {jsonpath_mini: "data.user.disable_post", comparator: "eq", expected: false}
+        - extract_test:               {jsonpath_mini: "data.user.curriculum.id",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.user.curriculum.name",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.user.curriculum.icon_pic_url",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.user.school_name",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.user.referral_code",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.user.weak_subjects",  test: "exists"}
+
+        - extract_test:               {jsonpath_mini: "data.subjects.0.id",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.0.abbr",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.0.description",  test: "exists"}
+        #- compare:                    {jsonpath_mini: "data.subjects.0.minimum_credits_required", comparator: "eq", expected: 40}
+        - extract_test:               {jsonpath_mini: "data.subjects.0.icon_color",  test: "exists"}
+        #- compare:                    {jsonpath_mini: "data.subjects.0.text_color", comparator: "str_eq", expected: "#000000"}
+        #- extract_test:               {jsonpath_mini: "data.subjects.0.is_default",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.0.icon_pic_url",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.0.topic_count",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.0.is_show_quizzes",  test: "exists"}
+
+        - extract_test:               {jsonpath_mini: "data.subjects.1.id",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.1.abbr",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.1.description",  test: "exists"}
+        #- compare:                    {jsonpath_mini: "data.subjects.1.minimum_credits_required", comparator: "eq", expected: 40}
+        - extract_test:               {jsonpath_mini: "data.subjects.1.icon_color",  test: "exists"}
+        #- compare:                    {jsonpath_mini: "data.subjects.1.text_color", comparator: "str_eq", expected: "#000000"}
+        #- extract_test:               {jsonpath_mini: "data.subjects.1.is_default",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.1.icon_pic_url",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.1.topic_count",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.1.is_show_quizzes",  test: "exists"}
+
+        - extract_test:               {jsonpath_mini: "data.subjects.2.id",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.2.abbr",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.2.description",  test: "exists"}
+        #- compare:                    {jsonpath_mini: "data.subjects.2.minimum_credits_required", comparator: "eq", expected: 40}
+        - extract_test:               {jsonpath_mini: "data.subjects.2.icon_color",  test: "exists"}
+        #- compare:                    {jsonpath_mini: "data.subjects.2.text_color", comparator: "str_eq", expected: "#000000"}
+        #- extract_test:               {jsonpath_mini: "data.subjects.2.is_default",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.2.icon_pic_url",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.2.topic_count",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.2.is_show_quizzes",  test: "exists"}
+
+        - extract_test:               {jsonpath_mini: "data.subjects.3.id",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.3.abbr",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.3.description",  test: "exists"}
+        #- compare:                    {jsonpath_mini: "data.subjects.3.minimum_credits_required", comparator: "eq", expected: 40}
+        - extract_test:               {jsonpath_mini: "data.subjects.3.icon_color",  test: "exists"}
+        #- compare:                    {jsonpath_mini: "data.subjects.3.text_color", comparator: "str_eq", expected: "#000000"}
+        #- extract_test:               {jsonpath_mini: "data.subjects.3.is_default",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.3.icon_pic_url",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.3.topic_count",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.3.is_show_quizzes",  test: "exists"}
+
+        - extract_test:               {jsonpath_mini: "data.subjects.4.id",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.4.abbr",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.4.description",  test: "exists"}
+        #- compare:                    {jsonpath_mini: "data.subjects.4.minimum_credits_required", comparator: "eq", expected: 40}
+        - extract_test:               {jsonpath_mini: "data.subjects.4.icon_color",  test: "exists"}
+        #- compare:                    {jsonpath_mini: "data.subjects.4.text_color", comparator: "str_eq", expected: "#000000"}
+        #- extract_test:               {jsonpath_mini: "data.subjects.4.is_default",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.4.icon_pic_url",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.4.topic_count",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.4.is_show_quizzes",  test: "exists"}
+
+        - extract_test:               {jsonpath_mini: "data.subjects.5.id",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.5.abbr",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.5.description",  test: "exists"}
+        #- compare:                    {jsonpath_mini: "data.subjects.5.minimum_credits_required", comparator: "eq", expected: 40}
+        - extract_test:               {jsonpath_mini: "data.subjects.5.icon_color",  test: "exists"}
+        #- compare:                    {jsonpath_mini: "data.subjects.5.text_color", comparator: "str_eq", expected: "#000000"}
+        #- extract_test:               {jsonpath_mini: "data.subjects.5.is_default",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.5.icon_pic_url",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.5.topic_count",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.5.is_show_quizzes",  test: "exists"}
+
+        - extract_test:               {jsonpath_mini: "data.subjects.6.id",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.6.abbr",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.6.description",  test: "exists"}
+        #- compare:                    {jsonpath_mini: "data.subjects.6.minimum_credits_required", comparator: "eq", expected: 40}
+        - extract_test:               {jsonpath_mini: "data.subjects.6.icon_color",  test: "exists"}
+        #- compare:                    {jsonpath_mini: "data.subjects.6.text_color", comparator: "str_eq", expected: "#000000"}
+        #- extract_test:               {jsonpath_mini: "data.subjects.6.is_default",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.6.icon_pic_url",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.6.topic_count",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.6.is_show_quizzes",  test: "exists"}
+
+        - extract_test:               {jsonpath_mini: "data.subjects.7.id",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.7.abbr",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.7.description",  test: "exists"}
+        #- compare:                    {jsonpath_mini: "data.subjects.7.minimum_credits_required", comparator: "eq", expected: 40}
+        - extract_test:               {jsonpath_mini: "data.subjects.7.icon_color",  test: "exists"}
+        #- compare:                    {jsonpath_mini: "data.subjects.7.text_color", comparator: "str_eq", expected: "#000000"}
+        #- extract_test:               {jsonpath_mini: "data.subjects.7.is_default",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.7.icon_pic_url",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.7.topic_count",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.7.is_show_quizzes",  test: "exists"}
+
+        - extract_test:               {jsonpath_mini: "data.subjects.8.id",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.8.abbr",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.8.description",  test: "exists"}
+        #- compare:                    {jsonpath_mini: "data.subjects.8.minimum_credits_required", comparator: "eq", expected: 40}
+        - extract_test:               {jsonpath_mini: "data.subjects.8.icon_color",  test: "exists"}
+        #- compare:                    {jsonpath_mini: "data.subjects.8.text_color", comparator: "str_eq", expected: "#000000"}
+        #- extract_test:               {jsonpath_mini: "data.subjects.8.is_default",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.8.icon_pic_url",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.8.topic_count",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.8.is_show_quizzes",  test: "exists"}
+
+        - extract_test:               {jsonpath_mini: "data.subjects.9.id",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.9.abbr",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.9.description",  test: "exists"}
+        #- compare:                    {jsonpath_mini: "data.subjects.9.minimum_credits_required", comparator: "eq", expected: 40}
+        - extract_test:               {jsonpath_mini: "data.subjects.9.icon_color",  test: "exists"}
+        #- compare:                    {jsonpath_mini: "data.subjects.9.text_color", comparator: "str_eq", expected: "#000000"}
+        #- extract_test:               {jsonpath_mini: "data.subjects.0.is_default",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.9.icon_pic_url",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.9.topic_count",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.9.is_show_quizzes",  test: "exists"}
+
+        - extract_test:               {jsonpath_mini: "data.subjects.10.id",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.10.abbr",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.10.description",  test: "exists"}
+        #- compare:                    {jsonpath_mini: "data.subjects.10.minimum_credits_required", comparator: "eq", expected: 40}
+        - extract_test:               {jsonpath_mini: "data.subjects.10.icon_color",  test: "exists"}
+        #- compare:                    {jsonpath_mini: "data.subjects.10.text_color", comparator: "str_eq", expected: "#000000"}
+        #- extract_test:               {jsonpath_mini: "data.subjects.10.is_default",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.10.icon_pic_url",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.10.topic_count",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.subjects.10.is_show_quizzes",  test: "exists"}
+
+        - extract_test:               {jsonpath_mini: "data.subscriptions",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.search_subjects.normal.0.filter_name",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.search_subjects.normal.0.search_ids.0",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.search_subjects.normal.0.icon_pic_url",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.search_subjects.normal.1.filter_name",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.search_subjects.normal.1.search_ids.0",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.search_subjects.normal.1.icon_pic_url",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.search_subjects.normal.2.filter_name",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.search_subjects.normal.2.search_ids.0",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.search_subjects.normal.2.icon_pic_url",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.search_subjects.normal.3.filter_name",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.search_subjects.normal.3.search_ids.0",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.search_subjects.normal.3.icon_pic_url",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.search_subjects.normal.4.filter_name",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.search_subjects.normal.4.search_ids.0",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.search_subjects.normal.4.icon_pic_url",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.search_subjects.normal.5.filter_name",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.search_subjects.normal.5.search_ids.0",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.search_subjects.normal.5.icon_pic_url",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.search_subjects.normal.6.filter_name",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.search_subjects.normal.6.search_ids.0",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.search_subjects.normal.6.icon_pic_url",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.search_subjects.normal.7.filter_name",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.search_subjects.normal.7.search_ids.0",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.search_subjects.normal.7.icon_pic_url",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.search_subjects.normal.8.filter_name",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.search_subjects.normal.8.search_ids.0",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.search_subjects.normal.8.icon_pic_url",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.search_subjects.normal.9.filter_name",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.search_subjects.normal.9.search_ids.0",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.search_subjects.normal.9.icon_pic_url",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.search_subjects.normal.10.filter_name",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.search_subjects.normal.10.search_ids.0",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.search_subjects.normal.10.icon_pic_url",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.search_subjects.normal.11.filter_name",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.search_subjects.normal.11.search_ids.0",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.search_subjects.normal.11.icon_pic_url",  test: "exists"}
+
+        - extract_test:               {jsonpath_mini: "data.search_subjects.time_based.0.filter_name",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.search_subjects.time_based.0.search_ids.0",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.search_subjects.time_based.0.icon_pic_url",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.search_subjects.time_based.1.filter_name",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.search_subjects.time_based.1.search_ids.0",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.search_subjects.time_based.1.icon_pic_url",  test: "exists"}
+        #- extract_test:               {jsonpath_mini: "data.search_subjects.time_based.2.filter_name",  test: "exists"}
+        #- extract_test:               {jsonpath_mini: "data.search_subjects.time_based.2.search_ids.0",  test: "exists"}
+        #- extract_test:               {jsonpath_mini: "data.search_subjects.time_based.2.icon_pic_url",  test: "exists"}
+
+        - extract_test:               {jsonpath_mini: "data.tried_exam_coach",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.typeform_url",  test: "exists"}
+        - compare:                    {jsonpath_mini: "data.enabale_share_button", comparator: "str_eq", expected: 'True'}
+
+        - compare:                    {jsonpath_mini: "data.rate_messages.score1.0.id", comparator: "eq", expected: 1}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score1.0.message", comparator: "str_eq", expected: "Poor explanation"}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score1.0.order", comparator: "eq", expected: 1}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score1.1.id", comparator: "eq", expected: 2}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score1.1.message", comparator: "str_eq", expected: "Bad attitude"}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score1.1.order", comparator: "eq", expected: 2}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score1.2.id", comparator: "eq", expected: 3}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score1.2.message", comparator: "str_eq", expected: "Unhelpful teaching"}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score1.2.order", comparator: "eq", expected: 3}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score1.3.id", comparator: "eq", expected: 4}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score1.3.message", comparator: "str_eq", expected: "Slow response"}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score1.3.order", comparator: "eq", expected: 4}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score2.0.id", comparator: "eq", expected: 5}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score2.0.message", comparator: "str_eq", expected: "Poor explanation"}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score2.0.order", comparator: "eq", expected: 1}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score2.1.id", comparator: "eq", expected: 6}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score2.1.message", comparator: "str_eq", expected: "Bad attitude"}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score2.1.order", comparator: "eq", expected: 2}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score2.2.id", comparator: "eq", expected: 7}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score2.2.message", comparator: "str_eq", expected: "Unhelpful teaching"}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score2.2.order", comparator: "eq", expected: 3}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score2.3.id", comparator: "eq", expected: 8}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score2.3.message", comparator: "str_eq", expected: "Slow response"}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score2.3.order", comparator: "eq", expected: 4}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score3.0.id", comparator: "eq", expected: 9}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score3.0.message", comparator: "str_eq", expected: "Poor explanation"}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score3.0.order", comparator: "eq", expected: 1}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score3.1.id", comparator: "eq", expected: 10}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score3.1.message", comparator: "str_eq", expected: "Bad attitude"}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score3.1.order", comparator: "eq", expected: 2}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score3.2.id", comparator: "eq", expected: 11}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score3.2.message", comparator: "str_eq", expected: "Unhelpful teaching"}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score3.2.order", comparator: "eq", expected: 3}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score3.3.id", comparator: "eq", expected: 12}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score3.3.message", comparator: "str_eq", expected: "Slow response"}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score3.3.order", comparator: "eq", expected: 4}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score4.0.id", comparator: "eq", expected: 13}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score4.0.message", comparator: "str_eq", expected: "Clear explanation"}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score4.0.order", comparator: "eq", expected: 1}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score4.1.id", comparator: "eq", expected: 14}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score4.1.message", comparator: "str_eq", expected: "Nice attitude"}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score4.1.order", comparator: "eq", expected: 2}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score4.2.id", comparator: "eq", expected: 15}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score4.2.message", comparator: "str_eq", expected: "Instructive teaching"}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score4.2.order", comparator: "eq", expected: 3}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score4.3.id", comparator: "eq", expected: 16}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score4.3.message", comparator: "str_eq", expected: "Instant reply"}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score4.3.order", comparator: "eq", expected: 4}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score5.0.id", comparator: "eq", expected: 17}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score5.0.message", comparator: "str_eq", expected: "Clear explanation"}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score5.0.order", comparator: "eq", expected: 1}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score5.1.id", comparator: "eq", expected: 18}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score5.1.message", comparator: "str_eq", expected: "Nice attitude"}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score5.1.order", comparator: "eq", expected: 2}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score5.2.id", comparator: "eq", expected: 19}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score5.2.message", comparator: "str_eq", expected: "Instructive teaching"}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score5.2.order", comparator: "eq", expected: 3}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score5.3.id", comparator: "eq", expected: 20}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score5.3.message", comparator: "str_eq", expected: "Instant reply"}
+        - compare:                    {jsonpath_mini: "data.rate_messages.score5.3.order", comparator: "eq", expected: 4}
+        - extract_test:               {jsonpath_mini: "data.quiz_reasons",  test: "exists"}
+#Verify app_lunch
+
+- test:
+    - group:                          "UAT Android login testsuite"
+    - name:                           "check update_push_subscription"
+    - url:                            "api/v2/update_push_subscription"
+    - method:                         "POST"
+    - body:                           {template: '{"push_platform": "gcm","device_token": "$DeviceToken"}'}
+    - headers:                        {template: {'Content-Type': 'application/json','Snapask-Authorization': 'Bearer $AuthToken','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+#verify gcm push notification data
+
+- test:
+    - group:                          "UAT Android login testsuite"
+    - name:                           "check is_new_quizzes"
+    - url:                            {template: "/api/v2/students/$SnapaskUID/is_new_quizzes"}
+    - method:                         "GET"
+    - headers:                        {template: {'Content-Type': 'application/json','Snapask-Authorization': 'Bearer $AuthToken','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+    - validators:
+        - extract_test:               {jsonpath_mini: "data.is_new_quizzes",  test: "exists"}
+#verify new quiz
+#TODO: if is_new_quizzes = true, client then would call /api/v2/students/$SnapaskUID/quizzes/check_new and get new topic info. However, once been called the API, is_new_quizzes will would become false. Need to find a way to test it consistently.
+
+- test:
+    - group:                          "UAT Android login testsuite"
+    - name:                           "check referre_quota"
+    - url:                            {template: "/api/v2/students/$SnapaskUID/referre_quota"}
+    - method:                         "GET"
+    - headers:                        {template: {'Content-Type': 'application/json','Snapask-Authorization': 'Bearer $AuthToken','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+    - validators:
+        - compare:                    {jsonpath_mini: "status", comparator: "str_eq", expected: 'success'}
+        - compare:                    {jsonpath_mini: "data.referre_quota", comparator: "ge", expected: 0}
+        - compare:                    {jsonpath_mini: "data.available_quota", comparator: "str_eq", expected: {template: $AvailableQuota}}
+        - compare:                    {jsonpath_mini: "data.subscription_quota", comparator: "str_eq", expected: {template: $SubscriptionQuota}}
+        - compare:                    {jsonpath_mini: "data.without_subscription_quota", comparator: "str_eq", expected: {template: $WithoutSubscriptionQuota}}
+#verify referre_quota
+
+- test:
+    - group:                          "UAT Android login testsuite"
+    - name:                           "check quota"
+    - url:                            {template: "/api/v2/students/$SnapaskUID/quotas"}
+    - method:                         "GET"
+    - headers:                        {template: {'Content-Type': 'application/json','Snapask-Authorization': 'Bearer $AuthToken','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+    - validators:
+        - compare:                    {jsonpath_mini: "status", comparator: "str_eq", expected: 'success'}
+        - compare:                    {jsonpath_mini: "data.available_quota", comparator: "str_eq", expected: {template: $AvailableQuota}}
+        - compare:                    {jsonpath_mini: "data.subscription_quota", comparator: "str_eq", expected: {template: $SubscriptionQuota}}
+        - compare:                    {jsonpath_mini: "data.without_subscription_quota", comparator: "str_eq", expected: {template: $WithoutSubscriptionQuota}}
+#verify quota
+#############################################################
+############## UAT Android login testsuite END ##############
+#############################################################
+#################################################################
+############## UAT Android QZ Redo testsuite START ##############
+#################################################################
+#Notice: The database of Quizz may change. The sequence of recommended quiz is based on correct percentage. Script may be failed due to this.
+
+- test:
+    - group:                          "UAT Android QZ Redo testsuite"
+    - name:                           "Get English quizzes 1"
+    - url:                            {template: "/api/v2/students/$SnapaskUID/quizzes"}
+    - method:                         "PUT"
+    - body:                           {template: '{"topic_id": "$TopicsID"}'}
+    - headers:                        {template: {'Content-Type': 'application/json','Snapask-Authorization': 'Bearer $AuthToken','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+    - extract_binds:
+        - 'qzID':                     {'jsonpath_mini': 'data.qzs.0.qz_id'}
+    - validators:
+        - compare:                    {jsonpath_mini: "status", comparator: "str_eq", expected: 'success'}
+        - extract_test:               {jsonpath_mini: "data.qzs.0.description",  test: "exists"}
+        - compare:                    {jsonpath_mini: "data.qzs.0.ft_size", comparator: "str_eq", expected: "16"}
+        - extract_test:               {jsonpath_mini: "data.qzs.0.ans_text.0",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.qzs.0.ans_text.1",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.qzs.0.ans_text.2",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.qzs.0.ans_text.3",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.qzs.0.correct_ans",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.qzs.0.has_latex",  test: "exists"}
+        - compare:                    {jsonpath_mini: "data.qzs.0.pass_percentage", comparator: "ge", expected: 0}
+        - extract_test:               {jsonpath_mini: "data.qzs.0.from_exam",  test: "exists"}
+        #- extract_test:               {jsonpath_mini: "data.qzs.0.from_year.0",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.qzs.0.paper_name",  test: "exists"}
+        #- extract_test:               {jsonpath_mini: "data.0.left_in_topic",  test: "exists"}
+#Redo English Quiz, 文意選填 and verify response
+
+- test:
+    - group:                          "UAT Android QZ Redo testsuite"
+    - name:                           "POST correct quizzes answer 1"
+    - url:                            {template: "/api/v2/students/$SnapaskUID/quizzes/$qzID/answers"}
+    - method:                         "POST"
+    - body:                           {template: '{"topic_id": "$TopicsID","pass": "true","answer": "0"}'}
+    - headers:                        {template: {'Content-Type': 'application/json','Snapask-Authorization': 'Bearer $AuthToken','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+    - validators:
+        - compare:                    {jsonpath_mini: "status", comparator: "str_eq", expected: 'success'}
+        - compare:                    {jsonpath_mini: "data.response", comparator: "str_eq", expected: "OK"}
+#Submit correct answer for quiz 1
+
+- test:
+    - group:                          "UAT Android QZ Redo testsuite"
+    - name:                           "Check QZ status"
+    - url:                            {template: "/api/v3/students/first_page_topics?device_type=android&lang=en-HK"}
+    - method:                         "GET"
+    - headers:                        {template: {'Content-Type': 'application/json','Snapask-Authorization': 'Bearer $AuthToken','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+    - validators:
+        - compare:                    {jsonpath_mini: "status", comparator: "str_eq", expected: 'success'}
+        - compare:                    {jsonpath_mini: "data.0.subject_id", comparator: "str_eq", expected: {template: $SubjectsID}}
+        - compare:                    {jsonpath_mini: "data.0.id", comparator: "str_eq", expected: {template: $TopicsID}}
+        - extract_test:               {jsonpath_mini: "data.0.name",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.0.statistics_data.total_count",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.0.statistics_data.pass_count",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.0.statistics_data.fail_count",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.0.statistics_data.skipped_count",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.0.left_in_topic",  test: "exists"}
+        - compare:                    {jsonpath_mini: "data.0.new_tag", comparator: "eq", expected: False}
+        - compare:                    {jsonpath_mini: "data.0.is_show_quizzes", comparator: "eq", expected: true}
+#Check QZ status updated as planned
+
+- test:
+    - group:                          "UAT Android QZ Redo testsuite"
+    - name:                           "Get English quizzes 2"
+    - url:                            {template: "/api/v2/students/$SnapaskUID/quizzes?topic_id=$TopicsID&num_of_qzs=1"}
+    - method:                         "GET"
+    - headers:                        {template: {'Content-Type': 'application/json','Snapask-Authorization': 'Bearer $AuthToken','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+    - extract_binds:
+        - 'qzID':                     {'jsonpath_mini': 'data.qzs.0.qz_id'}
+    - validators:
+        - compare:                    {jsonpath_mini: "status", comparator: "str_eq", expected: 'success'}
+        - extract_test:               {jsonpath_mini: "data.qzs.0.description",  test: "exists"}
+        - compare:                    {jsonpath_mini: "data.qzs.0.ft_size", comparator: "str_eq", expected: "16"}
+        - extract_test:               {jsonpath_mini: "data.qzs.0.ans_text.0",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.qzs.0.ans_text.1",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.qzs.0.ans_text.2",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.qzs.0.ans_text.3",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.qzs.0.correct_ans",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.qzs.0.has_latex",  test: "exists"}
+        - compare:                    {jsonpath_mini: "data.qzs.0.pass_percentage", comparator: "ge", expected: 0}
+        - extract_test:               {jsonpath_mini: "data.qzs.0.from_exam",  test: "exists"}
+        #- extract_test:               {jsonpath_mini: "data.qzs.0.from_year.0",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.qzs.0.paper_name",  test: "exists"}
+        #- extract_test:               {jsonpath_mini: "data.0.left_in_topic",  test: "exists"}
+#Get quiz 2 info
+
+- test:
+    - group:                          "UAT Android QZ Redo testsuite"
+    - name:                           "POST correct quizzes answer 2"
+    - url:                            {template: "/api/v2/students/$SnapaskUID/quizzes/$qzID/answers"}
+    - method:                         "POST"
+    - body:                           {template: '{"topic_id": "$TopicsID","pass": "true","answer": "0"}'}
+    - headers:                        {template: {'Content-Type': 'application/json','Snapask-Authorization': 'Bearer $AuthToken','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+    - validators:
+        - compare:                    {jsonpath_mini: "status", comparator: "str_eq", expected: 'success'}
+        - compare:                    {jsonpath_mini: "data.response", comparator: "str_eq", expected: "OK"}
+#Submit correct answer for quiz 2
+
+- test:
+    - group:                          "UAT Android QZ Redo testsuite"
+    - name:                           "Check QZ status"
+    - url:                            {template: "/api/v3/students/first_page_topics?device_type=android&lang=en-HK"}
+    - method:                         "GET"
+    - headers:                        {template: {'Content-Type': 'application/json','Snapask-Authorization': 'Bearer $AuthToken','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+    - validators:
+        - compare:                    {jsonpath_mini: "status", comparator: "str_eq", expected: 'success'}
+        - compare:                    {jsonpath_mini: "data.0.subject_id", comparator: "str_eq", expected: {template: $SubjectsID}}
+        - compare:                    {jsonpath_mini: "data.0.id", comparator: "str_eq", expected: {template: $TopicsID}}
+        - extract_test:               {jsonpath_mini: "data.0.name",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.0.statistics_data.total_count",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.0.statistics_data.pass_count",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.0.statistics_data.fail_count",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.0.statistics_data.skipped_count",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.0.left_in_topic",  test: "exists"}
+        - compare:                    {jsonpath_mini: "data.0.new_tag", comparator: "eq", expected: False}
+        - compare:                    {jsonpath_mini: "data.0.is_show_quizzes", comparator: "eq", expected: true}
+#Check QZ status updated as planned
+
+- test:
+    - group:                          "UAT Android QZ Redo testsuite"
+    - name:                           "Get English quizzes 3"
+    - url:                            {template: "/api/v2/students/$SnapaskUID/quizzes?topic_id=$TopicsID&num_of_qzs=1"}
+    - method:                         "GET"
+    - headers:                        {template: {'Content-Type': 'application/json','Snapask-Authorization': 'Bearer $AuthToken','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+    - extract_binds:
+        - 'qzID':                     {'jsonpath_mini': 'data.qzs.0.qz_id'}
+    - validators:
+        - compare:                    {jsonpath_mini: "status", comparator: "str_eq", expected: 'success'}
+        - extract_test:               {jsonpath_mini: "data.qzs.0.description",  test: "exists"}
+        - compare:                    {jsonpath_mini: "data.qzs.0.ft_size", comparator: "str_eq", expected: "16"}
+        - extract_test:               {jsonpath_mini: "data.qzs.0.ans_text.0",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.qzs.0.ans_text.1",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.qzs.0.ans_text.2",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.qzs.0.ans_text.3",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.qzs.0.correct_ans",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.qzs.0.has_latex",  test: "exists"}
+        - compare:                    {jsonpath_mini: "data.qzs.0.pass_percentage", comparator: "ge", expected: 0}
+        - extract_test:               {jsonpath_mini: "data.qzs.0.from_exam",  test: "exists"}
+        #- extract_test:               {jsonpath_mini: "data.qzs.0.from_year.0",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.qzs.0.paper_name",  test: "exists"}
+        #- extract_test:               {jsonpath_mini: "data.0.left_in_topic",  test: "exists"}
+#Get quiz 3 info
+
+- test:
+    - group:                          "UAT Android QZ Redo testsuite"
+    - name:                           "POST correct quizzes answer 3"
+    - url:                            {template: "/api/v2/students/$SnapaskUID/quizzes/$qzID/answers"}
+    - method:                         "POST"
+    - body:                           {template: '{"topic_id": "$TopicsID","pass": "true","answer": "0"}'}
+    - headers:                        {template: {'Content-Type': 'application/json','Snapask-Authorization': 'Bearer $AuthToken','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+    - validators:
+        - compare:                    {jsonpath_mini: "status", comparator: "str_eq", expected: 'success'}
+        - compare:                    {jsonpath_mini: "data.response", comparator: "str_eq", expected: "OK"}
+#Submit correct answer for quiz 3
+
+- test:
+    - group:                          "UAT Android QZ Redo testsuite"
+    - name:                           "Check QZ status"
+    - url:                            {template: "/api/v3/students/first_page_topics?device_type=android&lang=en-HK"}
+    - method:                         "GET"
+    - headers:                        {template: {'Content-Type': 'application/json','Snapask-Authorization': 'Bearer $AuthToken','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+    - validators:
+        - compare:                    {jsonpath_mini: "status", comparator: "str_eq", expected: 'success'}
+        - compare:                    {jsonpath_mini: "data.0.subject_id", comparator: "str_eq", expected: {template: $SubjectsID}}
+        - compare:                    {jsonpath_mini: "data.0.id", comparator: "str_eq", expected: {template: $TopicsID}}
+        - extract_test:               {jsonpath_mini: "data.0.name",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.0.statistics_data.total_count",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.0.statistics_data.pass_count",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.0.statistics_data.fail_count",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.0.statistics_data.skipped_count",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.0.left_in_topic",  test: "exists"}
+        - compare:                    {jsonpath_mini: "data.0.new_tag", comparator: "eq", expected: False}
+        - compare:                    {jsonpath_mini: "data.0.is_show_quizzes", comparator: "eq", expected: true}
+#Check QZ status updated as planned
+
+- test:
+    - group:                          "UAT Android QZ Redo testsuite"
+    - name:                           "Get English quizzes 4"
+    - url:                            {template: "/api/v2/students/$SnapaskUID/quizzes?topic_id=$TopicsID&num_of_qzs=1"}
+    - method:                         "GET"
+    - headers:                        {template: {'Content-Type': 'application/json','Snapask-Authorization': 'Bearer $AuthToken','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+    - extract_binds:
+        - 'qzID':                     {'jsonpath_mini': 'data.qzs.0.qz_id'}
+    - validators:
+        - compare:                    {jsonpath_mini: "status", comparator: "str_eq", expected: 'success'}
+        - extract_test:               {jsonpath_mini: "data.qzs.0.description",  test: "exists"}
+        - compare:                    {jsonpath_mini: "data.qzs.0.ft_size", comparator: "str_eq", expected: "16"}
+        - extract_test:               {jsonpath_mini: "data.qzs.0.ans_text.0",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.qzs.0.ans_text.1",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.qzs.0.ans_text.2",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.qzs.0.ans_text.3",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.qzs.0.correct_ans",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.qzs.0.has_latex",  test: "exists"}
+        - compare:                    {jsonpath_mini: "data.qzs.0.pass_percentage", comparator: "ge", expected: 0}
+        - extract_test:               {jsonpath_mini: "data.qzs.0.from_exam",  test: "exists"}
+        #- extract_test:               {jsonpath_mini: "data.qzs.0.from_year.0",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.qzs.0.paper_name",  test: "exists"}
+        #- extract_test:               {jsonpath_mini: "data.0.left_in_topic",  test: "exists"}
+#Get quiz 4 info
+
+- test:
+    - group:                          "UAT Android QZ Redo testsuite"
+    - name:                           "POST skip quizzes 4"
+    - url:                            {template: "/api/v2/students/$SnapaskUID/quizzes/$qzID/skip"}
+    - method:                         "POST"
+    - body:                           {template: '{"topic_id": "$TopicsID"}'}
+    - headers:                        {template: {'Content-Type': 'application/json','Snapask-Authorization': 'Bearer $AuthToken','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+    - validators:
+        - compare:                    {jsonpath_mini: "status", comparator: "str_eq", expected: 'success'}
+        - compare:                    {jsonpath_mini: "data.response", comparator: "str_eq", expected: "OK"}
+#Skip answer for quiz 4
+
+- test:
+    - group:                          "UAT Android QZ Redo testsuite"
+    - name:                           "Check QZ status"
+    - url:                            {template: "/api/v3/students/first_page_topics?device_type=android&lang=en-HK"}
+    - method:                         "GET"
+    - headers:                        {template: {'Content-Type': 'application/json','Snapask-Authorization': 'Bearer $AuthToken','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+    - validators:
+        - compare:                    {jsonpath_mini: "status", comparator: "str_eq", expected: 'success'}
+        - compare:                    {jsonpath_mini: "data.0.subject_id", comparator: "str_eq", expected: {template: $SubjectsID}}
+        - compare:                    {jsonpath_mini: "data.0.id", comparator: "str_eq", expected: {template: $TopicsID}}
+        - extract_test:               {jsonpath_mini: "data.0.name",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.0.statistics_data.total_count",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.0.statistics_data.pass_count",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.0.statistics_data.fail_count",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.0.statistics_data.skipped_count",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.0.left_in_topic",  test: "exists"}
+        - compare:                    {jsonpath_mini: "data.0.new_tag", comparator: "eq", expected: False}
+        - compare:                    {jsonpath_mini: "data.0.is_show_quizzes", comparator: "eq", expected: true}
+#Check QZ status updated as planned
+
+- test:
+    - group:                          "UAT Android QZ Redo testsuite"
+    - name:                           "Get English quizzes 5"
+    - url:                            {template: "/api/v2/students/$SnapaskUID/quizzes?topic_id=$TopicsID&num_of_qzs=1"}
+    - method:                         "GET"
+    - headers:                        {template: {'Content-Type': 'application/json','Snapask-Authorization': 'Bearer $AuthToken','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+    - extract_binds:
+        - 'qzID':                     {'jsonpath_mini': 'data.qzs.0.qz_id'}
+    - validators:
+        - compare:                    {jsonpath_mini: "status", comparator: "str_eq", expected: 'success'}
+        - extract_test:               {jsonpath_mini: "data.qzs.0.description",  test: "exists"}
+        - compare:                    {jsonpath_mini: "data.qzs.0.ft_size", comparator: "str_eq", expected: "16"}
+        - extract_test:               {jsonpath_mini: "data.qzs.0.ans_text.0",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.qzs.0.ans_text.1",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.qzs.0.ans_text.2",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.qzs.0.ans_text.3",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.qzs.0.correct_ans",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.qzs.0.has_latex",  test: "exists"}
+        - compare:                    {jsonpath_mini: "data.qzs.0.pass_percentage", comparator: "ge", expected: 0}
+        - extract_test:               {jsonpath_mini: "data.qzs.0.from_exam",  test: "exists"}
+        #- extract_test:               {jsonpath_mini: "data.qzs.0.from_year.0",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.qzs.0.paper_name",  test: "exists"}
+        #- extract_test:               {jsonpath_mini: "data.0.left_in_topic",  test: "exists"}
+#Get quiz 5 info
+
+- test:
+    - group:                          "UAT Android QZ Redo testsuite"
+    - name:                           "POST incorrect quizzes answer 5"
+    - url:                            {template: "/api/v2/students/$SnapaskUID/quizzes/$qzID/answers"}
+    - method:                         "POST"
+    - body:                           {template: '{"topic_id": "$TopicsID","pass": "false","answer": "1"}'}
+    - headers:                        {template: {'Content-Type': 'application/json','Snapask-Authorization': 'Bearer $AuthToken','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+    - validators:
+        - compare:                    {jsonpath_mini: "status", comparator: "str_eq", expected: 'success'}
+        - compare:                    {jsonpath_mini: "data.response", comparator: "str_eq", expected: "OK"}
+#Submit incorrect answer for quiz 5
+
+- test:
+    - group:                          "UAT Android QZ Redo testsuite"
+    - name:                           "Check QZ status"
+    - url:                            {template: "/api/v3/students/first_page_topics?device_type=android&lang=en-HK"}
+    - method:                         "GET"
+    - headers:                        {template: {'Content-Type': 'application/json','Snapask-Authorization': 'Bearer $AuthToken','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+    - validators:
+        - compare:                    {jsonpath_mini: "status", comparator: "str_eq", expected: 'success'}
+        - compare:                    {jsonpath_mini: "data.0.subject_id", comparator: "str_eq", expected: {template: $SubjectsID}}
+        - compare:                    {jsonpath_mini: "data.0.id", comparator: "str_eq", expected: {template: $TopicsID}}
+        - extract_test:               {jsonpath_mini: "data.0.name",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.0.statistics_data.total_count",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.0.statistics_data.pass_count",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.0.statistics_data.fail_count",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.0.statistics_data.skipped_count",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.0.left_in_topic",  test: "exists"}
+        - compare:                    {jsonpath_mini: "data.0.new_tag", comparator: "eq", expected: False}
+        - compare:                    {jsonpath_mini: "data.0.is_show_quizzes", comparator: "eq", expected: true}
+#Check QZ status updated as planned
+
+###############################################################
+############## UAT Android QZ Redo testsuite END ##############
+###############################################################
+#################################################################
+############## UAT Android Profile testsuite START ##############
+#################################################################
+- test:
+    - group:                          "UAT Android Profile testsuite"
+    - name:                           "check username availability"
+    - url:                            {template: "/api/v2/users/check/username?username=api_testing&device_type=android&lang=en-HK"}
+    - method:                         "GET"
+    - headers:                        {template: {'Content-Type': 'application/json','Snapask-Authorization': 'Bearer $AuthToken','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+    - validators:
+        - compare:                    {jsonpath_mini: "status", comparator: "str_eq", expected: 'success'}
+        - compare:                    {jsonpath_mini: "response", comparator: "str_eq", expected: 'Username is available.'}
+#Check username availability
+
+- test:
+    - group:                          "UAT Android Profile testsuite"
+    - name:                           "update profile"
+    - url:                            {template: "/api/v2/users/$SnapaskUID/update_user_attributes"}
+    - method:                         "PATCH"
+    - body:                           {template: '{"device_type": "android","date_of_birth": "2002-12-31","username": "api_testing","last_name": "Testcase","first_name": "Profile","lang": "en-HK","gender": "Female","school_name": "Snappy"}'}
+    - headers:                        {template: {'Content-Type': 'application/json','Snapask-Authorization': 'Bearer $AuthToken','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+    - validators:
+        - compare:                    {jsonpath_mini: "status", comparator: "str_eq", expected: 'success'}
+        - compare:                    {jsonpath_mini: "data.available_quota", comparator: "str_eq", expected: {template: $AvailableQuota}}
+        - compare:                    {jsonpath_mini: "data.subscription_quota", comparator: "str_eq", expected: {template: $SubscriptionQuota}}
+        - compare:                    {jsonpath_mini: "data.without_subscription_quota", comparator: "str_eq", expected: {template: $WithoutSubscriptionQuota}}
+        - compare:                    {jsonpath_mini: "data.user.snapask_uid", comparator: "str_eq", expected: {template: $SnapaskUID}}
+        - compare:                    {jsonpath_mini: "data.user.email", comparator: "str_eq", expected: {template: $Email}}
+        - compare:                    {jsonpath_mini: "data.user.country_code", comparator: "str_eq", expected: {template: $CountryCode}}
+        - compare:                    {jsonpath_mini: "data.user.phone", comparator: "str_eq", expected: {template: $Phone}}
+        - compare:                    {jsonpath_mini: "data.user.profile_pic_url", comparator: "str_eq", expected: {template: $ProfilePicUrl}}
+        - compare:                    {jsonpath_mini: "data.user.dob", comparator: "str_eq", expected: {template: "2002-12-31"}}
+        - compare:                    {jsonpath_mini: "data.user.gender", comparator: "str_eq", expected: "Female"}
+        - compare:                    {jsonpath_mini: "data.user.role.name", comparator: "str_eq", expected: "Student"}
+        - compare:                    {jsonpath_mini: "data.user.first_name", comparator: "str_eq", expected: "Profile"}
+        - compare:                    {jsonpath_mini: "data.user.last_name", comparator: "str_eq", expected: "Testcase"}
+        - compare:                    {jsonpath_mini: "data.user.username", comparator: "str_eq", expected: "api_testing"}
+        - compare:                    {jsonpath_mini: "data.user.region.id", comparator: "str_eq", expected: {template: $RegionId}}
+        - compare:                    {jsonpath_mini: "data.user.region.name", comparator: "str_eq", expected: {template: $RegionName}}
+        - compare:                    {jsonpath_mini: "data.user.region.full_name", comparator: "str_eq", expected: {template: $RegionFullName}}
+        - compare:                    {jsonpath_mini: "data.user.region.is_have_quiz", comparator: "str_eq", expected: {template: $RegionQuiz}}
+        - compare:                    {jsonpath_mini: "data.user.disable_post", comparator: "str_eq", expected: {template: $DisablePost}}
+        - compare:                    {jsonpath_mini: "data.user.school_name", comparator: "str_eq", expected: "Snappy"}
+        - extract_test:               {jsonpath_mini: "data.user.curriculum",  test: "exists"}
+        - compare:                    {jsonpath_mini: "data.user.referral_code", comparator: "str_eq", expected: {template: $ReferralCode}}
+        - extract_test:               {jsonpath_mini: "data.user.weak_subjects",  test: "exists"}
+#Modify Profile data
+
+- test:
+    - group:                          "UAT Android Profile testsuite"
+    - name:                           "restore profile"
+    - url:                            {template: "/api/v2/users/$SnapaskUID/update_user_attributes"}
+    - method:                         "PATCH"
+    - body:                           {template: '{"device_type": "android","date_of_birth": "$Dob","username": "$Username","last_name": "$LastName","first_name": "$FirstName","lang": "en-HK","gender": "$Gender","school_name": "$SchoolName"}'}
+    - headers:                        {template: {'Content-Type': 'application/json','Snapask-Authorization': 'Bearer $AuthToken','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+    - validators:
+        - compare:                    {jsonpath_mini: "status", comparator: "str_eq", expected: 'success'}
+        - compare:                    {jsonpath_mini: "data.available_quota", comparator: "str_eq", expected: {template: $AvailableQuota}}
+        - compare:                    {jsonpath_mini: "data.subscription_quota", comparator: "str_eq", expected: {template: $SubscriptionQuota}}
+        - compare:                    {jsonpath_mini: "data.without_subscription_quota", comparator: "str_eq", expected: {template: $WithoutSubscriptionQuota}}
+        - compare:                    {jsonpath_mini: "data.user.snapask_uid", comparator: "str_eq", expected: {template: $SnapaskUID}}
+        - compare:                    {jsonpath_mini: "data.user.email", comparator: "str_eq", expected: {template: $Email}}
+        - compare:                    {jsonpath_mini: "data.user.country_code", comparator: "str_eq", expected: {template: $CountryCode}}
+        - compare:                    {jsonpath_mini: "data.user.phone", comparator: "str_eq", expected: {template: $Phone}}
+        - compare:                    {jsonpath_mini: "data.user.profile_pic_url", comparator: "str_eq", expected: {template: $ProfilePicUrl}}
+        - compare:                    {jsonpath_mini: "data.user.dob", comparator: "str_eq", expected: {template: $Dob}}
+        - compare:                    {jsonpath_mini: "data.user.gender", comparator: "str_eq", expected: {template: $Gender}}
+        - compare:                    {jsonpath_mini: "data.user.role.name", comparator: "str_eq", expected: "Student"}
+        - compare:                    {jsonpath_mini: "data.user.first_name", comparator: "str_eq", expected: {template: $FirstName}}
+        - compare:                    {jsonpath_mini: "data.user.last_name", comparator: "str_eq", expected: {template: $LastName}}
+        - compare:                    {jsonpath_mini: "data.user.username", comparator: "str_eq", expected: {template: $Username}}
+        - compare:                    {jsonpath_mini: "data.user.region.id", comparator: "str_eq", expected: {template: $RegionId}}
+        - compare:                    {jsonpath_mini: "data.user.region.name", comparator: "str_eq", expected: {template: $RegionName}}
+        - compare:                    {jsonpath_mini: "data.user.region.full_name", comparator: "str_eq", expected: {template: $RegionFullName}}
+        - compare:                    {jsonpath_mini: "data.user.region.is_have_quiz", comparator: "str_eq", expected: {template: $RegionQuiz}}
+        - compare:                    {jsonpath_mini: "data.user.disable_post", comparator: "str_eq", expected: {template: $DisablePost}}
+        - compare:                    {jsonpath_mini: "data.user.school_name", comparator: "str_eq", expected: {template: $SchoolName}}
+        - extract_test:               {jsonpath_mini: "data.user.curriculum",  test: "exists"}
+        - compare:                    {jsonpath_mini: "data.user.referral_code", comparator: "str_eq", expected: {template: $ReferralCode}}
+        - extract_test:               {jsonpath_mini: "data.user.weak_subjects",  test: "exists"}
+#Restore Profile data
+
+
+###############################################################
+############## UAT Android Profile testsuite END ##############
+###############################################################
+############################################################
+############## UAT Android QA testsuite START ##############
+############################################################
+- test:
+    - group:                          "UAT Android QA testsuite"
+    - name:                           "check student quota before 1st question"
+    - url:                            {template: "/api/v2/students/$SnapaskUID/quotas"}
+    - method:                         "GET"
+    - headers:                        {template: {'Content-Type': 'application/json','Snapask-Authorization': 'Bearer $AuthToken','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+    - extract_binds:
+        - 'AvailableQuota':           {'jsonpath_mini': 'data.available_quota'}
+        - 'SubscriptionQuota':        {'jsonpath_mini': 'data.subscription_quota'}
+        - 'WithoutSubscriptionQuota': {'jsonpath_mini': 'data.without_subscription_quota'}
+
+- test:
+    - generator_binds:                {Message: QuestionMsg}
+    - group:                          "UAT Android QA testsuite"
+    - name:                           "student ask 1st question"
+    - url:                            {template: "/api/v2/students/$SnapaskUID/questions"}
+    - method:                         "POST"
+    - headers:                        {template: {'Content-Type': 'application/json','Snapask-Authorization': 'Bearer $AuthToken','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+    - body:                           {template: '{"lang": "en-HK","subject_id": "16","description": "$Message"}'}
+    - extract_binds:
+        - 'QuestionID':               {'jsonpath_mini': 'data.question.id'}
+        - 'QuestionRoom':             {'jsonpath_mini': 'data.question.pubnub_channel_name'}
+    - validators:
+        - compare:                    {jsonpath_mini: "status", comparator: "str_eq", expected: 'success'}
+        - compare:                    {jsonpath_mini: "data.question.description", comparator: "str_eq", expected: {template: $Message}}
+        - compare:                    {jsonpath_mini: "data.question.pubnub_channel_name", comparator: "contains", expected: "Question_room_tw_"}
+        - compare:                    {jsonpath_mini: "data.question.asked_by.id", comparator: "str_eq", expected: {template: $SnapaskUID}}
+        - compare:                    {jsonpath_mini: "data.question.asked_by.snapask_uid", comparator: "str_eq", expected: {template: $SnapaskUID}}
+        - compare:                    {jsonpath_mini: "data.question.asked_by.email", comparator: "str_eq", expected: {template: $Email}}
+        - compare:                    {jsonpath_mini: "data.question.asked_by.username", comparator: "str_eq", expected: {template: $Username}}
+        - compare:                    {jsonpath_mini: "data.question.asked_by.role.name", comparator: "str_eq", expected: "Student"}
+        - compare:                    {jsonpath_mini: "data.question.subject.id", comparator: "eq", expected: 16}
+        - compare:                    {jsonpath_mini: "data.question.subject.abbr", comparator: "str_eq", expected: "Math"}
+        - compare:                    {jsonpath_mini: "data.question.subject.description", comparator: "eq", expected: "數學"}
+        #- compare:                    {jsonpath_mini: "data.question.subject.minimum_credits_required", comparator: "eq", expected: 40}
+        - compare:                    {jsonpath_mini: "data.question.subject.bg_color", comparator: "str_eq", expected: "#73c3e1"}
+        - compare:                    {jsonpath_mini: "data.question.subject.icon_color", comparator: "str_eq", expected: "#000000"}
+        #- compare:                    {jsonpath_mini: "data.question.subject.text_color", comparator: "str_eq", expected: "#000000"}
+        - compare:                    {jsonpath_mini: "data.question.subject.is_default", comparator: "eq", expected: false}
+        - compare:                    {jsonpath_mini: "data.question.subject.icon_pic_url", comparator: "str_eq", expected: "https://s3-ap-southeast-1.amazonaws.com/attachments.test-consolidation.appedu.co/subjects/icon_pics/000/000/016/medium/16_math.png?1484902736"}
+        - extract_test:               {jsonpath_mini: "data.question.subject.topic_count",  test: "exists"}
+        - compare:                    {jsonpath_mini: "data.question.subject.is_show_quizzes", comparator: "eq", expected: true}
+        - compare:                    {jsonpath_mini: "data.question.aasm_state", comparator: "str_eq", expected: "open"}
+        - extract_test:               {jsonpath_mini: "data.question.updated_at",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.question.created_at",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.question.quiz_id",  test: "not_exists"}
+        - compare:                    {jsonpath_mini: "data.question.quiz_answer", comparator: "eq", expected: -1}
+        - extract_test:               {jsonpath_mini: "data.question.user_rating",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.user_rating_comment",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.user_rating_messages",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.picture_url",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.picture_thumb_url",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.audio_record_url",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.audio_length",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.topic_name",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.topic_id",  test: "not_exists"}
+
+- test:
+    - group:                          "UAT Android QA testsuite"
+    - name:                           "check tutor cashout info before answering 1st question"
+    - url:                            {template: "/api/v2/tutors/$tut_SnapaskUID/cashout?lang=en-HK"}
+    - method:                         "GET"
+    - headers:                        {template: {'Content-Type': 'application/json','Snapask-Authorization': 'Bearer $tut_AuthToken','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+    - extract_binds:
+        - 'AnswerQuestion':           {'jsonpath_mini': 'data.total_answered_questions_count'}
+        - 'UncashCount':              {'jsonpath_mini': 'data.uncashed_count'}
+        - 'UncashMoney':              {'jsonpath_mini': 'data.uncashed_money'}
+        - 'tutCurrency':              {'jsonpath_mini': 'data.currency'}
+    - validators:
+        - compare:                    {jsonpath_mini: "status", comparator: "str_eq", expected: 'success'}
+
+- test:
+    - group:                          "UAT Android QA testsuite"
+    - name:                           "tutor pick 1st question"
+    - url:                            {template: "/api/v2/tutors/$tut_SnapaskUID/questions/$QuestionID/pick"}
+    - method:                         "PATCH"
+    - headers:                        {template: {'Content-Type': 'application/json','Snapask-Authorization': 'Bearer $tut_AuthToken','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+    - body:                           {template: '{"lang": "en-HK","question_id": "$QuestionID"}'}
+    - validators:
+        - compare:                    {jsonpath_mini: "status", comparator: "str_eq", expected: 'success'}
+        - compare:                    {jsonpath_mini: "data.question.id", comparator: "str_eq", expected: {template: $QuestionID}}
+        - compare:                    {jsonpath_mini: "data.question.description", comparator: "str_eq", expected: {template: $Message}}
+        - compare:                    {jsonpath_mini: "data.question.pubnub_channel_name", comparator: "str_eq", expected: {template: $QuestionRoom}}
+
+        - compare:                    {jsonpath_mini: "data.question.asked_by.id", comparator: "str_eq", expected: {template: $SnapaskUID}}
+        - compare:                    {jsonpath_mini: "data.question.asked_by.snapask_uid", comparator: "str_eq", expected: {template: $SnapaskUID}}
+        - compare:                    {jsonpath_mini: "data.question.asked_by.role.name", comparator: "str_eq", expected: "Student"}
+        - extract_test:               {jsonpath_mini: "data.question.asked_by.profile_pic_url",  test: "exists"}
+        - compare:                    {jsonpath_mini: "data.question.asked_by.average_rate", comparator: "eq", expected: 0}
+        - extract_test:               {jsonpath_mini: "data.question.asked_by.since_date",  test: "exists"}
+        - compare:                    {jsonpath_mini: "data.question.asked_by.email", comparator: "str_eq", expected: {template: $Email}}
+        - compare:                    {jsonpath_mini: "data.question.asked_by.username", comparator: "str_eq", expected: {template: $Username}}
+
+        - compare:                    {jsonpath_mini: "data.question.answered_by.id", comparator: "str_eq", expected: {template: $tut_SnapaskUID}}
+        - compare:                    {jsonpath_mini: "data.question.answered_by.snapask_uid", comparator: "str_eq", expected: {template: $tut_SnapaskUID}}
+        - compare:                    {jsonpath_mini: "data.question.answered_by.role.name", comparator: "str_eq", expected: "Tutor"}
+        - extract_test:               {jsonpath_mini: "data.question.answered_by.profile_pic_url", test: "exists"}
+        - compare:                    {jsonpath_mini: "data.question.answered_by.average_rate", comparator: "ge", expected: 0}
+        - extract_test:               {jsonpath_mini: "data.question.answered_by.since_date",  test: "exists"}
+        - compare:                    {jsonpath_mini: "data.question.answered_by.email", comparator: "str_eq", expected: {template: $tut_Email}}
+        - compare:                    {jsonpath_mini: "data.question.answered_by.username", comparator: "str_eq", expected: {template: $tut_Username}}
+
+        - compare:                    {jsonpath_mini: "data.question.curriculum.id", comparator: "eq", expected: 10}
+        - extract_test:               {jsonpath_mini: "data.question.curriculum.name", test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.question.curriculum.icon_pic_url", test: "exists"}
+
+        - compare:                    {jsonpath_mini: "data.question.subject.id", comparator: "eq", expected: 16}
+        - compare:                    {jsonpath_mini: "data.question.subject.abbr", comparator: "str_eq", expected: "Math"}
+        - compare:                    {jsonpath_mini: "data.question.subject.description", comparator: "eq", expected: "數學"}
+        #- compare:                    {jsonpath_mini: "data.question.subject.minimum_credits_required", comparator: "eq", expected: 40}
+        - compare:                    {jsonpath_mini: "data.question.subject.bg_color", comparator: "str_eq", expected: "#73c3e1"}
+        - compare:                    {jsonpath_mini: "data.question.subject.icon_color", comparator: "str_eq", expected: "#000000"}
+        #- compare:                    {jsonpath_mini: "data.question.subject.text_color", comparator: "str_eq", expected: "#000000"}
+        - compare:                    {jsonpath_mini: "data.question.subject.is_default", comparator: "eq", expected: false}
+        - compare:                    {jsonpath_mini: "data.question.subject.icon_pic_url", comparator: "str_eq", expected: "https://s3-ap-southeast-1.amazonaws.com/attachments.test-consolidation.appedu.co/subjects/icon_pics/000/000/016/medium/16_math.png?1484902736"}
+        - extract_test:               {jsonpath_mini: "data.question.subject.topic_count",  test: "exists"}
+        - compare:                    {jsonpath_mini: "data.question.subject.is_show_quizzes", comparator: "eq", expected: true}
+        - compare:                    {jsonpath_mini: "data.question.aasm_state", comparator: "str_eq", expected: "on_going"}
+        - extract_test:               {jsonpath_mini: "data.question.updated_at",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.question.created_at",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.question.quiz_id",  test: "not_exists"}
+        - compare:                    {jsonpath_mini: "data.question.quiz_answer", comparator: "eq", expected: -1}
+        - extract_test:               {jsonpath_mini: "data.question.user_rating",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.user_rating_comment",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.user_rating_messages",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.picture_url",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.picture_thumb_url",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.audio_record_url",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.audio_length",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.topic_name",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.topic_id",  test: "not_exists"}
+
+# SP 43 changes: do not have right to accept/reject for free user
+#- test:
+#    - group:                          "UAT Android QA testsuite"
+#    - name:                           "student accept 1st question"
+#    - url:                            {template: "/api/v2/students/$SnapaskUID/questions/$QuestionID/accept"}
+#    - method:                         "PATCH"
+#    - headers:                        {template: {'Content-Type': 'application/json','Snapask-Authorization': 'Bearer $AuthToken','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+#    - body:                           {template: '{"lang": "en-HK"}'}
+#    - validators:
+#        - compare:                    {jsonpath_mini: "status", comparator: "str_eq", expected: 'success'}
+#        - compare:                    {jsonpath_mini: "data.question.id", comparator: "str_eq", expected: {template: $QuestionID}}
+#        - compare:                    {jsonpath_mini: "data.question.description", comparator: "str_eq", expected: {template: $Message}}
+#        - compare:                    {jsonpath_mini: "data.question.pubnub_channel_name", comparator: "str_eq", expected: {template: $QuestionRoom}}
+#        - compare:                    {jsonpath_mini: "data.question.aasm_state", comparator: "str_eq", expected: "on_going"}
+
+- test:
+    - group:                          "UAT Android QA testsuite"
+    - name:                           "tutor end 1st question"
+    - url:                            {template: "/api/v2/questions/$QuestionID/finish"}
+    - method:                         "PATCH"
+    - headers:                        {template: {'Content-Type': 'application/json','Snapask-Authorization': 'Bearer $tut_AuthToken','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+    - body:                           {template: '{"lang": "en-HK","question_id": "$QuestionID"}'}
+    - validators:
+        - compare:                    {jsonpath_mini: "status", comparator: "str_eq", expected: 'success'}
+        - compare:                    {jsonpath_mini: "data.message.id", comparator: "ge", expected: 0}
+        - compare:                    {jsonpath_mini: "data.message.description", comparator: "str_eq", expected: "The session is completed."}
+        - compare:                    {jsonpath_mini: "data.message.snapask_uid", comparator: "eq", expected: 0}
+        - compare:                    {jsonpath_mini: "data.message.question_id", comparator: "str_eq", expected: {template: $QuestionID}}
+        - extract_test:               {jsonpath_mini: "data.message.updated_at",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.message.created_at",  test: "exists"}
+        - compare:                    {jsonpath_mini: "data.message.message_action", comparator: "str_eq", expected: "end_session"}
+        - compare:                    {jsonpath_mini: "data.pubnub_channel_name", comparator: "str_eq", expected: {template: $QuestionRoom}}
+        - compare:                    {jsonpath_mini: "data.pubnub_status.0", comparator: "eq", expected: 1}
+        - compare:                    {jsonpath_mini: "data.pubnub_status.1", comparator: "str_eq", expected: "Sent"}
+
+- test:
+    - group:                          "UAT Android QA testsuite"
+    - name:                           "check tutor cashout info after finishing 1st question"
+    - url:                            {template: "/api/v2/tutors/$tut_SnapaskUID/cashout?lang=en-HK"}
+    - method:                         "GET"
+    - headers:                        {template: {'Content-Type': 'application/json','Snapask-Authorization': 'Bearer $tut_AuthToken','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+    - validators:
+        - compare:                    {jsonpath_mini: "status", comparator: "str_eq", expected: 'success'}
+        - compare:                    {jsonpath_mini: "data.total_answered_questions_count", comparator: "inc", expected: {template: $AnswerQuestion}}
+        - compare:                    {jsonpath_mini: "data.uncashed_count", comparator: "inc", expected: {template: $UncashCount}}
+        - compare:                    {jsonpath_mini: "data.uncashed_money", comparator: "flo-gt", expected: {template: $UncashMoney}}
+        - compare:                    {jsonpath_mini: "data.currency", comparator: "str_eq", expected: {template: $tutCurrency}}
+
+- test:
+    - group:                          "UAT Android QA testsuite"
+    - name:                           "check student quota after finishing 1st question"
+    - url:                            {template: "/api/v2/students/$SnapaskUID/quotas"}
+    - method:                         "GET"
+    - headers:                        {template: {'Content-Type': 'application/json','Snapask-Authorization': 'Bearer $AuthToken','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+    - validators:
+        - compare:                    {jsonpath_mini: "status", comparator: "str_eq", expected: 'success'}
+        - compare:                    {jsonpath_mini: "data.available_quota", comparator: "dec", expected: {template: $AvailableQuota}}
+        - compare:                    {jsonpath_mini: "data.subscription_quota", comparator: "str_eq", expected: {template: $SubscriptionQuota}}
+        - compare:                    {jsonpath_mini: "data.without_subscription_quota", comparator: "dec", expected: {template: $WithoutSubscriptionQuota}}
+
+- test:
+    - group:                          "UAT Android QA testsuite"
+    - name:                           "check student quota before 2nd question"
+    - url:                            {template: "/api/v2/students/$SnapaskUID/quotas"}
+    - method:                         "GET"
+    - headers:                        {template: {'Content-Type': 'application/json','Snapask-Authorization': 'Bearer $AuthToken','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+    - extract_binds:
+        - 'AvailableQuota':           {'jsonpath_mini': 'data.available_quota'}
+        - 'SubscriptionQuota':        {'jsonpath_mini': 'data.subscription_quota'}
+        - 'WithoutSubscriptionQuota': {'jsonpath_mini': 'data.without_subscription_quota'}
+
+- test:
+    - generator_binds:                {Message: QuestionMsg}
+    - group:                          "UAT Android QA testsuite"
+    - name:                           "student ask 2nd question"
+    - url: {template:                 "/api/v2/students/$SnapaskUID/questions"}
+    - method:                         "POST"
+    - headers:                        {template: {'Content-Type': 'application/json','Snapask-Authorization': 'Bearer $AuthToken','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+    - body:                           {template: '{"lang": "en-HK","subject_id": "16","description": "$Message"}'}
+    - extract_binds:
+        - 'QuestionID':               {'jsonpath_mini': 'data.question.id'}
+        - 'QuestionRoom':             {'jsonpath_mini': 'data.question.pubnub_channel_name'}
+    - validators:
+        - compare:                    {jsonpath_mini: "status", comparator: "str_eq", expected: 'success'}
+        - compare:                    {jsonpath_mini: "data.question.description", comparator: "str_eq", expected: {template: $Message}}
+        - compare:                    {jsonpath_mini: "data.question.pubnub_channel_name", comparator: "contains", expected: "Question_room_tw_"}
+        - compare:                    {jsonpath_mini: "data.question.asked_by.id", comparator: "str_eq", expected: {template: $SnapaskUID}}
+        - compare:                    {jsonpath_mini: "data.question.asked_by.snapask_uid", comparator: "str_eq", expected: {template: $SnapaskUID}}
+        - compare:                    {jsonpath_mini: "data.question.asked_by.email", comparator: "str_eq", expected: {template: $Email}}
+        - compare:                    {jsonpath_mini: "data.question.asked_by.username", comparator: "str_eq", expected: {template: $Username}}
+        - compare:                    {jsonpath_mini: "data.question.asked_by.role.name", comparator: "str_eq", expected: "Student"}
+        - compare:                    {jsonpath_mini: "data.question.subject.id", comparator: "eq", expected: 16}
+        - compare:                    {jsonpath_mini: "data.question.subject.abbr", comparator: "str_eq", expected: "Math"}
+        - compare:                    {jsonpath_mini: "data.question.subject.description", comparator: "eq", expected: "數學"}
+        #- compare:                    {jsonpath_mini: "data.question.subject.minimum_credits_required", comparator: "eq", expected: 40}
+        - compare:                    {jsonpath_mini: "data.question.subject.bg_color", comparator: "str_eq", expected: "#73c3e1"}
+        - compare:                    {jsonpath_mini: "data.question.subject.icon_color", comparator: "str_eq", expected: "#000000"}
+        #- compare:                    {jsonpath_mini: "data.question.subject.text_color", comparator: "str_eq", expected: "#000000"}
+        - compare:                    {jsonpath_mini: "data.question.subject.is_default", comparator: "eq", expected: false}
+        - compare:                    {jsonpath_mini: "data.question.subject.icon_pic_url", comparator: "str_eq", expected: "https://s3-ap-southeast-1.amazonaws.com/attachments.test-consolidation.appedu.co/subjects/icon_pics/000/000/016/medium/16_math.png?1484902736"}
+        - extract_test:               {jsonpath_mini: "data.question.subject.topic_count",  test: "exists"}
+        - compare:                    {jsonpath_mini: "data.question.subject.is_show_quizzes", comparator: "eq", expected: true}
+        - compare:                    {jsonpath_mini: "data.question.aasm_state", comparator: "str_eq", expected: "open"}
+        - extract_test:               {jsonpath_mini: "data.question.updated_at",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.question.created_at",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.question.quiz_id",  test: "not_exists"}
+        - compare:                    {jsonpath_mini: "data.question.quiz_answer", comparator: "eq", expected: -1}
+        - extract_test:               {jsonpath_mini: "data.question.user_rating",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.user_rating_comment",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.user_rating_messages",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.picture_url",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.picture_thumb_url",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.audio_record_url",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.audio_length",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.topic_name",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.topic_id",  test: "not_exists"}
+
+- test:
+    - group:                          "UAT Android QA testsuite"
+    - name:                           "check tutor cashout info before answering 2nd question"
+    - url:                            {template: "/api/v2/tutors/$tut_SnapaskUID/cashout?lang=en-HK"}
+    - method:                         "GET"
+    - headers:                        {template: {'Content-Type': 'application/json','Snapask-Authorization': 'Bearer $tut_AuthToken','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+    - extract_binds:
+        - 'AnswerQuestion':           {'jsonpath_mini': 'data.total_answered_questions_count'}
+        - 'UncashCount':              {'jsonpath_mini': 'data.uncashed_count'}
+        - 'UncashMoney':              {'jsonpath_mini': 'data.uncashed_money'}
+        - 'tutCurrency':              {'jsonpath_mini': 'data.currency'}
+    - validators:
+        - compare:                    {jsonpath_mini: "status", comparator: "str_eq", expected: 'success'}
+
+- test:
+    - group:                          "UAT Android QA testsuite"
+    - name:                           "tutor pick 2nd question"
+    - url:                            {template: "/api/v2/tutors/$tut_SnapaskUID/questions/$QuestionID/pick"}
+    - method:                         "PATCH"
+    - headers:                        {template: {'Content-Type': 'application/json','Snapask-Authorization': 'Bearer $tut_AuthToken','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+    - body:                           {template: '{"lang": "en-HK","question_id": "$QuestionID"}'}
+    - validators:
+        - compare:                    {jsonpath_mini: "status", comparator: "str_eq", expected: 'success'}
+        - compare:                    {jsonpath_mini: "data.question.id", comparator: "str_eq", expected: {template: $QuestionID}}
+        - compare:                    {jsonpath_mini: "data.question.description", comparator: "str_eq", expected: {template: $Message}}
+        - compare:                    {jsonpath_mini: "data.question.pubnub_channel_name", comparator: "str_eq", expected: {template: $QuestionRoom}}
+
+        - compare:                    {jsonpath_mini: "data.question.asked_by.id", comparator: "str_eq", expected: {template: $SnapaskUID}}
+        - compare:                    {jsonpath_mini: "data.question.asked_by.snapask_uid", comparator: "str_eq", expected: {template: $SnapaskUID}}
+        - compare:                    {jsonpath_mini: "data.question.asked_by.role.name", comparator: "str_eq", expected: "Student"}
+        - extract_test:               {jsonpath_mini: "data.question.asked_by.profile_pic_url",  test: "exists"}
+        - compare:                    {jsonpath_mini: "data.question.asked_by.average_rate", comparator: "eq", expected: 0}
+        - extract_test:               {jsonpath_mini: "data.question.asked_by.since_date",  test: "exists"}
+        - compare:                    {jsonpath_mini: "data.question.asked_by.email", comparator: "str_eq", expected: {template: $Email}}
+        - compare:                    {jsonpath_mini: "data.question.asked_by.username", comparator: "str_eq", expected: {template: $Username}}
+
+        - compare:                    {jsonpath_mini: "data.question.answered_by.id", comparator: "str_eq", expected: {template: $tut_SnapaskUID}}
+        - compare:                    {jsonpath_mini: "data.question.answered_by.snapask_uid", comparator: "str_eq", expected: {template: $tut_SnapaskUID}}
+        - compare:                    {jsonpath_mini: "data.question.answered_by.role.name", comparator: "str_eq", expected: "Tutor"}
+        - extract_test:               {jsonpath_mini: "data.question.answered_by.profile_pic_url", test: "exists"}
+        - compare:                    {jsonpath_mini: "data.question.answered_by.average_rate", comparator: "ge", expected: 0}
+        - extract_test:               {jsonpath_mini: "data.question.answered_by.since_date",  test: "exists"}
+        - compare:                    {jsonpath_mini: "data.question.answered_by.email", comparator: "str_eq", expected: {template: $tut_Email}}
+        - compare:                    {jsonpath_mini: "data.question.answered_by.username", comparator: "str_eq", expected: {template: $tut_Username}}
+
+        - compare:                    {jsonpath_mini: "data.question.curriculum.id", comparator: "eq", expected: 10}
+        - extract_test:               {jsonpath_mini: "data.question.curriculum.name", test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.question.curriculum.icon_pic_url", test: "exists"}
+
+        - compare:                    {jsonpath_mini: "data.question.subject.id", comparator: "eq", expected: 16}
+        - compare:                    {jsonpath_mini: "data.question.subject.abbr", comparator: "str_eq", expected: "Math"}
+        - compare:                    {jsonpath_mini: "data.question.subject.description", comparator: "eq", expected: "數學"}
+        #- compare:                    {jsonpath_mini: "data.question.subject.minimum_credits_required", comparator: "eq", expected: 40}
+        - compare:                    {jsonpath_mini: "data.question.subject.bg_color", comparator: "str_eq", expected: "#73c3e1"}
+        - compare:                    {jsonpath_mini: "data.question.subject.icon_color", comparator: "str_eq", expected: "#000000"}
+        #- compare:                    {jsonpath_mini: "data.question.subject.text_color", comparator: "str_eq", expected: "#000000"}
+        - compare:                    {jsonpath_mini: "data.question.subject.is_default", comparator: "eq", expected: false}
+        - compare:                    {jsonpath_mini: "data.question.subject.icon_pic_url", comparator: "str_eq", expected: "https://s3-ap-southeast-1.amazonaws.com/attachments.test-consolidation.appedu.co/subjects/icon_pics/000/000/016/medium/16_math.png?1484902736"}
+        - extract_test:               {jsonpath_mini: "data.question.subject.topic_count",  test: "exists"}
+        - compare:                    {jsonpath_mini: "data.question.subject.is_show_quizzes", comparator: "eq", expected: true}
+        - compare:                    {jsonpath_mini: "data.question.aasm_state", comparator: "str_eq", expected: "on_going"}
+        - extract_test:               {jsonpath_mini: "data.question.updated_at",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.question.created_at",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.question.quiz_id",  test: "not_exists"}
+        - compare:                    {jsonpath_mini: "data.question.quiz_answer", comparator: "eq", expected: -1}
+        - extract_test:               {jsonpath_mini: "data.question.user_rating",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.user_rating_comment",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.user_rating_messages",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.picture_url",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.picture_thumb_url",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.audio_record_url",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.audio_length",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.topic_name",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.topic_id",  test: "not_exists"}
+
+# SP 43 changes: do not have right to accept/reject for free user
+#- test:
+#    - group:                          "UAT Android QA testsuite"
+#    - name:                           "student accept 2st question"
+#    - url:                            {template: "/api/v2/students/$SnapaskUID/questions/$QuestionID/accept"}
+#    - method:                         "PATCH"
+#    - headers:                        {template: {'Content-Type': 'application/json','Snapask-Authorization': 'Bearer $AuthToken','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+#    - body:                           {template: '{"lang": "en-HK"}'}
+#    - validators:
+#        - compare:                    {jsonpath_mini: "status", comparator: "str_eq", expected: 'success'}
+#        - compare:                    {jsonpath_mini: "data.question.id", comparator: "str_eq", expected: {template: $QuestionID}}
+#        - compare:                    {jsonpath_mini: "data.question.description", comparator: "str_eq", expected: {template: $Message}}
+#        - compare:                    {jsonpath_mini: "data.question.pubnub_channel_name", comparator: "str_eq", expected: {template: $QuestionRoom}}
+#        - compare:                    {jsonpath_mini: "data.question.aasm_state", comparator: "str_eq", expected: "on_going"}
+
+- test:
+    - group:                          "UAT Android QA testsuite"
+    - name:                           "student end 2nd question"
+    - url:                            {template: "/api/v2/questions/$QuestionID/finish"}
+    - method:                         "PATCH"
+    - headers:                        {template: {'Content-Type': 'application/json','Snapask-Authorization': 'Bearer $AuthToken','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+    - body:                           {template: '{"lang": "en-HK","question_id": "$QuestionID"}'}
+    - validators:
+        - compare:                    {jsonpath_mini: "status", comparator: "str_eq", expected: 'success'}
+        - compare:                    {jsonpath_mini: "data.message.id", comparator: "ge", expected: 0}
+        - compare:                    {jsonpath_mini: "data.message.description", comparator: "str_eq", expected: "The session is completed."}
+        - compare:                    {jsonpath_mini: "data.message.snapask_uid", comparator: "eq", expected: 0}
+        - compare:                    {jsonpath_mini: "data.message.question_id", comparator: "str_eq", expected: {template: $QuestionID}}
+        - extract_test:               {jsonpath_mini: "data.message.updated_at",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.message.created_at",  test: "exists"}
+        - compare:                    {jsonpath_mini: "data.message.message_action", comparator: "str_eq", expected: "end_session"}
+        - compare:                    {jsonpath_mini: "data.pubnub_channel_name", comparator: "str_eq", expected: {template: $QuestionRoom}}
+        - compare:                    {jsonpath_mini: "data.pubnub_status.0", comparator: "eq", expected: 1}
+        - compare:                    {jsonpath_mini: "data.pubnub_status.1", comparator: "str_eq", expected: "Sent"}
+
+- test:
+    - group:                          "UAT Android QA testsuite"
+    - name:                           "check tutor cashout info after finishing 2nd question"
+    - url:                            {template: "/api/v2/tutors/$tut_SnapaskUID/cashout?lang=en-HK"}
+    - method:                         "GET"
+    - headers:                        {template: {'Content-Type': 'application/json','Snapask-Authorization': 'Bearer $tut_AuthToken','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+    - validators:
+        - compare:                    {jsonpath_mini: "status", comparator: "str_eq", expected: 'success'}
+        - compare:                    {jsonpath_mini: "data.total_answered_questions_count", comparator: "inc", expected: {template: $AnswerQuestion}}
+        - compare:                    {jsonpath_mini: "data.uncashed_count", comparator: "inc", expected: {template: $UncashCount}}
+        - compare:                    {jsonpath_mini: "data.uncashed_money", comparator: "flo-gt", expected: {template: $UncashMoney}}
+        - compare:                    {jsonpath_mini: "data.currency", comparator: "str_eq", expected: {template: $tutCurrency}}
+
+- test:
+    - group:                          "UAT Android QA testsuite"
+    - name:                           "check student quota after finishing 2nd question"
+    - url:                            {template: "/api/v2/students/$SnapaskUID/quotas"}
+    - method:                         "GET"
+    - headers:                        {template: {'Content-Type': 'application/json','Snapask-Authorization': 'Bearer $AuthToken','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+    - validators:
+        - compare:                    {jsonpath_mini: "status", comparator: "str_eq", expected: 'success'}
+        - compare:                    {jsonpath_mini: "data.available_quota", comparator: "dec", expected: {template: $AvailableQuota}}
+        - compare:                    {jsonpath_mini: "data.subscription_quota", comparator: "str_eq", expected: {template: $SubscriptionQuota}}
+        - compare:                    {jsonpath_mini: "data.without_subscription_quota", comparator: "dec", expected: {template: $WithoutSubscriptionQuota}}
+
+- test:
+    - group:                          "UAT Android QA testsuite"
+    - name:                           "follow favorite tutor"
+    - url:                            {template: "/api/v2/students/$SnapaskUID/favorite_tutors/$tut_SnapaskUID/follow"}
+    - method:                         "POST"
+    - headers:                        {template: {'Content-Type': 'application/json','Snapask-Authorization': 'Bearer $AuthToken','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+    - body:                           {template: '{"lang": "en-HK"}'}
+    - validators:
+        - compare:                    {jsonpath_mini: "status", comparator: "str_eq", expected: 'success'}
+        - compare:                    {jsonpath_mini: "data.favorite_tutors.0.username", comparator: "str_eq", expected: {template: $tut_Username}}
+
+- test:
+    - group:                          "UAT Android QA testsuite"
+    - name:                           "check favorite tutor"
+    - url:                            {template: "/api/v2/students/$SnapaskUID/favorite_tutors"}
+    - method:                         "GET"
+    - headers:                        {template: {'Content-Type': 'application/json','Snapask-Authorization': 'Bearer $AuthToken','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+    - validators:
+        - compare:                    {jsonpath_mini: "status", comparator: "str_eq", expected: 'success'}
+        - compare:                    {jsonpath_mini: "data.favorite_tutors.0.username", comparator: "str_eq", expected: {template: $tut_Username}}
+
+- test:
+    - generator_binds:                {Message: QuestionMsg}
+    - group:                          "UAT Android QA testsuite"
+    - name:                           "student ask question to favorite tutor"
+    - url: {template:                 "/api/v2/students/$SnapaskUID/questions"}
+    - method:                         "POST"
+    - headers:                        {template: {'Content-Type': 'application/json','Snapask-Authorization': 'Bearer $AuthToken','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+    - body:                           {template: '{"lang": "en-HK","subject_id": "16","description": "$Message","designate_tutor_id": "$tut_SnapaskUID"}'}
+    - extract_binds:
+        - 'QuestionID':               {'jsonpath_mini': 'data.question.id'}
+        - 'QuestionRoom':             {'jsonpath_mini': 'data.question.pubnub_channel_name'}
+    - validators:
+        - compare:                    {jsonpath_mini: "status", comparator: "str_eq", expected: 'success'}
+        - compare:                    {jsonpath_mini: "data.question.description", comparator: "str_eq", expected: {template: $Message}}
+        - compare:                    {jsonpath_mini: "data.question.pubnub_channel_name", comparator: "contains", expected: "Question_room_tw_"}
+        - compare:                    {jsonpath_mini: "data.question.asked_by.id", comparator: "str_eq", expected: {template: $SnapaskUID}}
+        - compare:                    {jsonpath_mini: "data.question.asked_by.snapask_uid", comparator: "str_eq", expected: {template: $SnapaskUID}}
+        - compare:                    {jsonpath_mini: "data.question.asked_by.email", comparator: "str_eq", expected: {template: $Email}}
+        - compare:                    {jsonpath_mini: "data.question.asked_by.username", comparator: "str_eq", expected: {template: $Username}}
+        - compare:                    {jsonpath_mini: "data.question.asked_by.role.name", comparator: "str_eq", expected: "Student"}
+        - compare:                    {jsonpath_mini: "data.question.subject.id", comparator: "eq", expected: 16}
+        - compare:                    {jsonpath_mini: "data.question.subject.abbr", comparator: "str_eq", expected: "Math"}
+        - compare:                    {jsonpath_mini: "data.question.subject.description", comparator: "eq", expected: "數學"}
+        #- compare:                    {jsonpath_mini: "data.question.subject.minimum_credits_required", comparator: "eq", expected: 40}
+        - compare:                    {jsonpath_mini: "data.question.subject.bg_color", comparator: "str_eq", expected: "#73c3e1"}
+        - compare:                    {jsonpath_mini: "data.question.subject.icon_color", comparator: "str_eq", expected: "#000000"}
+        #- compare:                    {jsonpath_mini: "data.question.subject.text_color", comparator: "str_eq", expected: "#000000"}
+        - compare:                    {jsonpath_mini: "data.question.subject.is_default", comparator: "eq", expected: false}
+        - compare:                    {jsonpath_mini: "data.question.subject.icon_pic_url", comparator: "str_eq", expected: "https://s3-ap-southeast-1.amazonaws.com/attachments.test-consolidation.appedu.co/subjects/icon_pics/000/000/016/medium/16_math.png?1484902736"}
+        - extract_test:               {jsonpath_mini: "data.question.subject.topic_count",  test: "exists"}
+        - compare:                    {jsonpath_mini: "data.question.subject.is_show_quizzes", comparator: "eq", expected: true}
+        - compare:                    {jsonpath_mini: "data.question.aasm_state", comparator: "str_eq", expected: "open"}
+        - extract_test:               {jsonpath_mini: "data.question.updated_at",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.question.created_at",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.question.quiz_id",  test: "not_exists"}
+        - compare:                    {jsonpath_mini: "data.question.quiz_answer", comparator: "eq", expected: -1}
+        - extract_test:               {jsonpath_mini: "data.question.user_rating",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.user_rating_comment",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.user_rating_messages",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.picture_url",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.picture_thumb_url",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.audio_record_url",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.audio_length",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.topic_name",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.topic_id",  test: "not_exists"}
+        - compare:                    {jsonpath_mini: "data.question.ask_type",  comparator: "str_eq", expected: "to_designate"}
+
+- test:
+    - group:                          "UAT Android QA testsuite"
+    - name:                           "student reopen question"
+    - url:                            {template: "/api/v2/students/$SnapaskUID/questions/$QuestionID/reopen"}
+    - method:                         "PATCH"
+    - headers:                        {template: {'Content-Type': 'application/json','Snapask-Authorization': 'Bearer $AuthToken','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+    - body:                           {template: '{"lang": "en-HK"}'}
+    - validators:
+        - compare:                    {jsonpath_mini: "status", comparator: "str_eq", expected: 'success'}
+        - compare:                    {jsonpath_mini: "data.question.description", comparator: "str_eq", expected: {template: $Message}}
+        - compare:                    {jsonpath_mini: "data.question.pubnub_channel_name", comparator: "contains", expected: "Question_room_tw_"}
+        - compare:                    {jsonpath_mini: "data.question.asked_by.id", comparator: "str_eq", expected: {template: $SnapaskUID}}
+        - compare:                    {jsonpath_mini: "data.question.asked_by.snapask_uid", comparator: "str_eq", expected: {template: $SnapaskUID}}
+        - compare:                    {jsonpath_mini: "data.question.asked_by.email", comparator: "str_eq", expected: {template: $Email}}
+        - compare:                    {jsonpath_mini: "data.question.asked_by.username", comparator: "str_eq", expected: {template: $Username}}
+        - compare:                    {jsonpath_mini: "data.question.asked_by.role.name", comparator: "str_eq", expected: "Student"}
+        - compare:                    {jsonpath_mini: "data.question.subject.id", comparator: "eq", expected: 16}
+        - compare:                    {jsonpath_mini: "data.question.subject.abbr", comparator: "str_eq", expected: "Math"}
+        - compare:                    {jsonpath_mini: "data.question.subject.description", comparator: "eq", expected: "數學"}
+        #- compare:                    {jsonpath_mini: "data.question.subject.minimum_credits_required", comparator: "eq", expected: 40}
+        - compare:                    {jsonpath_mini: "data.question.subject.bg_color", comparator: "str_eq", expected: "#73c3e1"}
+        - compare:                    {jsonpath_mini: "data.question.subject.icon_color", comparator: "str_eq", expected: "#000000"}
+        #- compare:                    {jsonpath_mini: "data.question.subject.text_color", comparator: "str_eq", expected: "#000000"}
+        - compare:                    {jsonpath_mini: "data.question.subject.is_default", comparator: "eq", expected: false}
+        - compare:                    {jsonpath_mini: "data.question.subject.icon_pic_url", comparator: "str_eq", expected: "https://s3-ap-southeast-1.amazonaws.com/attachments.test-consolidation.appedu.co/subjects/icon_pics/000/000/016/medium/16_math.png?1484902736"}
+        - extract_test:               {jsonpath_mini: "data.question.subject.topic_count",  test: "exists"}
+        - compare:                    {jsonpath_mini: "data.question.subject.is_show_quizzes", comparator: "eq", expected: true}
+        - compare:                    {jsonpath_mini: "data.question.aasm_state", comparator: "str_eq", expected: "open"}
+        - extract_test:               {jsonpath_mini: "data.question.updated_at",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.question.created_at",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.question.quiz_id",  test: "not_exists"}
+        - compare:                    {jsonpath_mini: "data.question.quiz_answer", comparator: "eq", expected: -1}
+        - extract_test:               {jsonpath_mini: "data.question.user_rating",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.user_rating_comment",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.user_rating_messages",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.picture_url",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.picture_thumb_url",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.audio_record_url",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.audio_length",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.topic_name",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.topic_id",  test: "not_exists"}
+        - compare:                    {jsonpath_mini: "data.question.ask_type",  comparator: "str_eq", expected: "to_open"}
+
+- test:
+    - group:                          "UAT Android QA testsuite"
+    - name:                           "student cancel question"
+    - url:                            {template: "/api/v2/students/$SnapaskUID/questions/$QuestionID/cancel"}
+    - method:                         "PATCH"
+    - headers:                        {template: {'Content-Type': 'application/json','Snapask-Authorization': 'Bearer $AuthToken','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+    - body:                           {template: '{"lang": "en-HK","cancel_reason": "user_manual_cancel","cancelled_by": "user"}'}
+    - validators:
+        - compare:                    {jsonpath_mini: "status", comparator: "str_eq", expected: 'success'}
+        - compare:                    {jsonpath_mini: "data.message.description", comparator: "str_eq", expected: {template: "$Username: cancel the question"}}
+        - compare:                    {jsonpath_mini: "data.question.description", comparator: "str_eq", expected: {template: $Message}}
+        - compare:                    {jsonpath_mini: "data.question.pubnub_channel_name", comparator: "contains", expected: "Question_room_tw_"}
+        - compare:                    {jsonpath_mini: "data.question.asked_by.id", comparator: "str_eq", expected: {template: $SnapaskUID}}
+        - compare:                    {jsonpath_mini: "data.question.asked_by.snapask_uid", comparator: "str_eq", expected: {template: $SnapaskUID}}
+        - compare:                    {jsonpath_mini: "data.question.asked_by.email", comparator: "str_eq", expected: {template: $Email}}
+        - compare:                    {jsonpath_mini: "data.question.asked_by.username", comparator: "str_eq", expected: {template: $Username}}
+        - compare:                    {jsonpath_mini: "data.question.asked_by.role.name", comparator: "str_eq", expected: "Student"}
+        - compare:                    {jsonpath_mini: "data.question.subject.id", comparator: "eq", expected: 16}
+        - compare:                    {jsonpath_mini: "data.question.subject.abbr", comparator: "str_eq", expected: "Math"}
+        - compare:                    {jsonpath_mini: "data.question.subject.description", comparator: "eq", expected: "數學"}
+        #- compare:                    {jsonpath_mini: "data.question.subject.minimum_credits_required", comparator: "eq", expected: 40}
+        - compare:                    {jsonpath_mini: "data.question.subject.bg_color", comparator: "str_eq", expected: "#73c3e1"}
+        - compare:                    {jsonpath_mini: "data.question.subject.icon_color", comparator: "str_eq", expected: "#000000"}
+        #- compare:                    {jsonpath_mini: "data.question.subject.text_color", comparator: "str_eq", expected: "#000000"}
+        - compare:                    {jsonpath_mini: "data.question.subject.is_default", comparator: "eq", expected: false}
+        - compare:                    {jsonpath_mini: "data.question.subject.icon_pic_url", comparator: "str_eq", expected: "https://s3-ap-southeast-1.amazonaws.com/attachments.test-consolidation.appedu.co/subjects/icon_pics/000/000/016/medium/16_math.png?1484902736"}
+        - extract_test:               {jsonpath_mini: "data.question.subject.topic_count",  test: "exists"}
+        - compare:                    {jsonpath_mini: "data.question.subject.is_show_quizzes", comparator: "eq", expected: true}
+        - compare:                    {jsonpath_mini: "data.question.aasm_state", comparator: "str_eq", expected: "cancelled"}
+        - extract_test:               {jsonpath_mini: "data.question.updated_at",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.question.created_at",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.question.quiz_id",  test: "not_exists"}
+        - compare:                    {jsonpath_mini: "data.question.quiz_answer", comparator: "eq", expected: -1}
+        - extract_test:               {jsonpath_mini: "data.question.user_rating",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.user_rating_comment",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.user_rating_messages",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.picture_url",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.picture_thumb_url",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.audio_record_url",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.audio_length",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.topic_name",  test: "not_exists"}
+        - extract_test:               {jsonpath_mini: "data.question.topic_id",  test: "not_exists"}
+        - compare:                    {jsonpath_mini: "data.question.ask_type",  comparator: "str_eq", expected: "to_open"}
+
+- test:
+    - group:                          "UAT Android QA testsuite"
+    - name:                           "unfollow favorite tutor"
+    - url:                            {template: "/api/v2/students/$SnapaskUID/favorite_tutors/$tut_SnapaskUID/unfollow"}
+    - method:                         "PATCH"
+    - headers:                        {template: {'Content-Type': 'application/json','Snapask-Authorization': 'Bearer $AuthToken','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+    - body:                           {template: '{"lang": "en-HK"}'}
+    - validators:
+        - compare:                    {jsonpath_mini: "status", comparator: "str_eq", expected: 'success'}
+        - extract_test:               {jsonpath_mini: "data.favorite_tutors.0",  test: "not_exists"}
+
+- test:
+    - group:                          "UAT Android QA testsuite"
+    - name:                           "check favorite tutor"
+    - url:                            {template: "/api/v2/students/$SnapaskUID/favorite_tutors"}
+    - method:                         "GET"
+    - headers:                        {template: {'Content-Type': 'application/json','Snapask-Authorization': 'Bearer $AuthToken','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+    - validators:
+        - compare:                    {jsonpath_mini: "status", comparator: "str_eq", expected: 'success'}
+        - extract_test:               {jsonpath_mini: "data.favorite_tutors.0",  test: "not_exists"}
+
+##########################################################
+############## UAT Android QA testsuite END ##############
+##########################################################
+################################################################
+############## UAT Android logout testsuite START ##############
+################################################################
+- test:
+    - group:                          "UAT Android logout testsuite"
+    - name:                           "student logout"
+    - url:                            {template: "/api/v2/logout"}
+    - method:                         "POST"
+    - body:                           {template: '{"push_platform": "gcm","device_token": "$DeviceToken"}'}
+    - headers:                        {template: {'Content-Type': 'application/json','Snapask-Authorization': 'Bearer $AuthToken','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+    - validators:
+        - compare:                    {jsonpath_mini: "status", comparator: "str_eq", expected: 'success'}
+        - compare:                    {jsonpath_mini: "data.amazon_sns_info.snapask_uid", comparator: "str_eq", expected: {template: $SnapaskUID}}
+        - compare:                    {jsonpath_mini: "data.amazon_sns_info.platform", comparator: "str_eq", expected: "gcm"}
+        - compare:                    {jsonpath_mini: "data.amazon_sns_info.device_token", comparator: "str_eq", expected: {template: $DeviceToken}}
+        - extract_test:               {jsonpath_mini: "data.amazon_sns_info.subscribed_topics",  test: "exists"}
+        - compare:                    {jsonpath_mini: "data.amazon_sns_info.subscribed_topics.logout", comparator: "eq", expected: true}
+#verify logout. The response data are all about sns push notification, already create a ticket: "[SE-170728-1114] Logout api doesn't clear authorization token" for backend team to modify the logout api. The response data may change after the fix. Please check.
+
+- test:
+    - group:                          "UAT Android logout testsuite"
+    - name:                           "tutor logout"
+    - url:                            {template: "/api/v2/logout"}
+    - method:                         "POST"
+    - body:                           {template: '{"push_platform": "gcm","device_token": "$DeviceToken"}'}
+    - headers:                        {template: {'Content-Type': 'application/json','Snapask-Authorization': 'Bearer $tut_AuthToken','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+#logout tutor
+
+- test:
+    - delay:                          "5"
+    - group:                          "UAT Android logout testsuite"
+    - name:                           "check quota"
+    - url:                            {template: "/api/v2/students/$SnapaskUID/quotas"}
+    - method:                         "GET"
+    - headers:                        {template: {'Content-Type': 'application/json','Snapask-Authorization': 'Bearer $AuthToken','Snapask-User-Agent': '{"device_id":"$DeviceID","os":"android","platform":"app"}','User-Agent': 'okhttp/3.6.0'}}
+    - expected_status:                [403,404]
+#Currently will always be failed if logout api doesn't clear auth token.
+##############################################################
+############## UAT Android logout testsuite END ##############
+##############################################################
