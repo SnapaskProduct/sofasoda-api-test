@@ -1,7 +1,7 @@
 ---
 - config:
     - testset:                        "Sofasoda UAT test for TW testsuite"
-    - variable_binds:                 {Username: 'sofaapitest@snapask.com', Password: 'Password', DeviceID: '2e0ede6e3218d3f236a3815a77cfe7be', UserAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130 Safari/537.36'}
+    - variable_binds:                 {Userid: '140', Useremail: 'sofaapitest@snapask.com', Password: 'Password', DeviceID: '2e0ede6e3218d3f236a3815a77cfe7be', UserAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130 Safari/537.36'}
     - timeout:                         5
 #TW user default config, simulate web login with stastic Username/Password/DeviceID.
 
@@ -65,3 +65,23 @@
 ######################################################################
 ############## UAT Sofasoda without login testsuite END ##############
 ######################################################################
+################################################################
+############## UAT Sofasoda login testsuite START ##############
+################################################################
+- test:
+    - group:                          "UAT Sofasoda login testsuite"
+    - name:                           "Log in"
+    - url:                            "api/sessions"
+    - method:                         "POST"
+    - body:                           {template: '{"lang": "zh-TW", "user": {"email": "$Useremail", "password": "$Password"} }' }
+    - headers:                        {template: {'Content-Type': 'application/json','sofasoda-user-agent': '{"device_id":"$DeviceID","os":"MacOS","platform":"web"}','User-Agent': '$UserAgent'}}
+    - extract_binds:
+        - 'AuthToken':                {'jsonpath_mini': 'data.auth_token'}
+    - validators:
+        - compare:                    {jsonpath_mini: "data.id", comparator: "str_eq", expected: {template: $Userid}}
+        - compare:                    {jsonpath_mini: "data.email", comparator: "eq", expected: {template: $Useremail}}
+        - extract_test:               {jsonpath_mini: "data.auth_token",  test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.profile_pic",  test: "exists"}
+################################################################
+############## UAT Sofasoda login testsuite END ##############
+################################################################
