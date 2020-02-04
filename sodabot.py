@@ -28,7 +28,7 @@ def handle_command(command, channel):
     if command.startswith(EXAMPLE_COMMAND):
         response = "`%s` Proceed UAT SOFASODA API regression test\n`%s` Dump debug log for last run" %(UAT_SOFASODA_API_TEST,LOG)
         
-    if command.startswith(UAT_API_TEST):
+    if command.startswith(UAT_SOFASODA_API_TEST):
         slack_client.api_call("chat.postMessage", channel=channel, text="Running " + command + "...", as_user=True)
         bashCommand = "./uatsofasodaapitest.sh || true"
         subprocess.check_output(['bash','-c', bashCommand])       
