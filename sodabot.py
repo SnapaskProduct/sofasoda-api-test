@@ -26,7 +26,7 @@ def handle_command(command, channel):
     response = "Not sure what you mean. Use the *" + EXAMPLE_COMMAND + \
                "* command to see what can I do for you."
     if command.startswith(EXAMPLE_COMMAND):
-        response = "`%s` Proceed UAT SOFASODA API regression test\n`%s` Dump debug log for last run" %(UAT__SOFASODA_API_TEST,LOG)
+        response = "`%s` Proceed UAT SOFASODA API regression test\n`%s` Dump debug log for last run" %(UAT_SOFASODA_API_TEST,LOG)
         
     if command.startswith(UAT_API_TEST):
         slack_client.api_call("chat.postMessage", channel=channel, text="Running " + command + "...", as_user=True)

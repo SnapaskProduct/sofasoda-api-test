@@ -1,4 +1,4 @@
-#!/Users/JohnnyWu/Development/slackbot/starterbot/bin/python
+#!/Users/twserver/Development/sofasoda-api-test/sodabot/bin/python
 
 import sys
 import getopt
