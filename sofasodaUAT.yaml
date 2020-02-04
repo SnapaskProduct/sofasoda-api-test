@@ -159,6 +159,8 @@
     - method:                         "GET"
     - body:                           {template: '{"lang": "zh-TW","recommended": "true"}'}
     - headers:                        {template: {'Content-Type': 'application/json','authorization': 'Bearer $AuthToken', 'sofasoda-user-agent': '{"device_id":"$DeviceID","os":"MacOS","platform":"web"}','User-Agent': '$UserAgent'}}
+    - extract_binds:
+        - 'FirstLesson':                {'jsonpath_mini': 'data.course.chapters.0.lessons.0.id'}
     - validators:
         - compare:                    {jsonpath_mini: "data.course.id", comparator: "eq", expected: 1}
         - compare:                    {jsonpath_mini: "data.course.name", comparator: "eq", expected: 不迷惘人生選擇學}
@@ -180,6 +182,18 @@
         - extract_test:               {jsonpath_mini: "data.course.homework_progress", test: "exists"}
         - extract_test:               {jsonpath_mini: "data.course.self_evaluated_url", test: "exists"}
         - extract_test:               {jsonpath_mini: "data.course.self_evaluated_finished", test: "exists"}
+
+- test:
+    - group:                          "UAT Sofasoda class testsuite"
+    - name:                           "Learning course 1"
+    - url:                            {template: "api/me/lessons/$FirstLesson/play"}
+    - method:                         "POST"
+    - body:                           {template: '{"lang": "zh-TW"}'}
+    - headers:                        {template: {'Content-Type': 'application/json','authorization': 'Bearer $AuthToken', 'sofasoda-user-agent': '{"device_id":"$DeviceID","os":"MacOS","platform":"web"}','User-Agent': '$UserAgent'}}
+
+    - validators:
+        - extract_test:               {jsonpath_mini: "data.otp", test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.playback_info", test: "exists"}
 
 ##############################################################
 ############## UAT Sofasoda class testsuite END ##############
