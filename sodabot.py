@@ -48,7 +48,7 @@ def handle_command(command, channel):
                 line = line.replace("[0m", "")
                 newf.write(line)
         if runFail:        
-            newf.write('<@U5MG4NSE4> <@U6YP9GR0C> <@UCQ830H7X> some cases were fail, please check!')
+            newf.write('<@U5MG4NSE4> <@U6YP9GR0C> some cases were fail, please check!')
         newf = open('Slack.msg', 'r')            
         response = newf.read()
         
