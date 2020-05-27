@@ -215,7 +215,7 @@
         - compare:                    {jsonpath_mini: "data.0.course_id", comparator: "eq", expected: 1}
         - compare:                    {jsonpath_mini: "data.0.course_title", comparator: "eq", expected: "不迷惘人生選擇學"}
         - compare:                    {jsonpath_mini: "data.0.banner", comparator: "eq", expected: 'https://sofasoda-courses.s3-ap-southeast-1.amazonaws.com/life_design/course_pic.svg'}
-        - compare:                    {jsonpath_mini: "data.0.tutor_avatar", comparator: "eq", expected: 'https://sofasoda-api-default.s3-ap-southeast-1.amazonaws.com/student/img_avatar.svg'}
+        - extract_test:               {jsonpath_mini: "data.0.tutor_avatar", test: "exists"}
         - compare:                    {jsonpath_mini: "data.0.individual.0.id", comparator: "str_eq", expected: '117'}
         - extract_test:               {jsonpath_mini: "data.0.individual.0.expire_at", test: "exists"}
         - extract_test:               {jsonpath_mini: "data.0.individual.0.created_at", test: "exists"}
