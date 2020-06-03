@@ -64,29 +64,6 @@
         - extract_test:               {jsonpath_mini: "data.4.id",  test: "exists"}
         - extract_test:               {jsonpath_mini: "data.4.name",  test: "exists"}
 
-- test:
-    - group:                          "UAT Sofasoda without login testsuite"
-    - name:                           "First class"
-    - url:                            "api/courses/1"
-    - method:                         "GET"
-    - body:                           {template: '{"lang": "zh-TW"}'}
-    - headers:                        {template: {'Content-Type': 'application/json','sofasoda-user-agent': '{"device_id":"$DeviceID","os":"MacOS","platform":"web"}','User-Agent': '$UserAgent'}}
-    - validators:
-        - compare:                    {jsonpath_mini: "data.id", comparator: "eq", expected: 1}
-        - compare:                    {jsonpath_mini: "data.topic_name", comparator: "eq", expected: '設計思考'}
-        - compare:                    {jsonpath_mini: "data.name", comparator: "eq", expected: '不迷惘人生選擇學'}
-        - extract_test:               {jsonpath_mini: "data.introduction", test: "exists"}
-        - compare:                    {jsonpath_mini: "data.intro_url", comparator: "eq", expected: 'https://vimeo.com/357501301'}
-        - compare:                    {jsonpath_mini: "data.intro_gif", comparator: "eq", expected: 'https://sofasoda-courses.s3-ap-southeast-1.amazonaws.com/life_design/course_pic.svg'}
-        - compare:                    {jsonpath_mini: "data.pre_sale_gif", comparator: "eq", expected: 'https://sofasoda.s3-ap-northeast-1.amazonaws.com/funding.gif'}
-        - compare:                    {jsonpath_mini: "data.status", comparator: "eq", expected: 'for_sale'}
-        - extract_test:               {jsonpath_mini: "data.price", test: "exists"}
-        - extract_test:               {jsonpath_mini: "data.presale_price", test: "exists"}
-        - extract_test:               {jsonpath_mini: "data.saved_price", test: "exists"}
-        - extract_test:               {jsonpath_mini: "data.start_at", test: "exists"}
-        - extract_test:               {jsonpath_mini: "data.presale_start_at", test: "exists"}
-        - extract_test:               {jsonpath_mini: "data.presale_end_at", test: "exists"}
-
 ######################################################################
 ############## UAT Sofasoda without login testsuite END ##############
 ######################################################################
