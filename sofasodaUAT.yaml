@@ -176,58 +176,45 @@
 ############## UAT Sofasoda class testsuite END ##############
 ##############################################################
 ######################################################################
-############## UAT Sofasoda group class testsuite START ##############
+############## UAT Sofasoda bookings testsuite START ##############
 ######################################################################
 
 - test:
-    - group:                          "UAT Sofasoda group class testsuite"
+    - group:                          "UAT Sofasoda bookings testsuite"
     - name:                           "Quota"
     - url:                            "api/me/quotas"
     - method:                         "GET"
     - body:                           {template: '{"lang": "zh-TW"}'}
     - headers:                        {template: {'Content-Type': 'application/json','authorization': 'Bearer $AuthToken', 'sofasoda-user-agent': '{"device_id":"$DeviceID","os":"MacOS","platform":"web"}','User-Agent': '$UserAgent'}}
     - extract_binds:
-        - 'FirstGroupClass':          {'jsonpath_mini': 'data.0.individual.0.id'}
+        - 'FirstQuota':               {'jsonpath_mini': 'data.0.id'}
     - validators:
-        - compare:                    {jsonpath_mini: "data.0.course_id", comparator: "eq", expected: 1}
-        - compare:                    {jsonpath_mini: "data.0.course_title", comparator: "eq", expected: "不迷惘人生選擇學"}
-        - compare:                    {jsonpath_mini: "data.0.banner", comparator: "eq", expected: 'https://sofasoda-courses.s3-ap-southeast-1.amazonaws.com/life_design/course_pic.svg'}
-        - extract_test:               {jsonpath_mini: "data.0.tutor_avatar", test: "exists"}
-        - compare:                    {jsonpath_mini: "data.0.individual.0.id", comparator: "str_eq", expected: '117'}
-        - extract_test:               {jsonpath_mini: "data.0.individual.0.expire_at", test: "exists"}
-        - extract_test:               {jsonpath_mini: "data.0.individual.0.created_at", test: "exists"}
-        - extract_test:               {jsonpath_mini: "data.0.individual.0.is_expired",  test: "exists"}
-        - extract_test:               {jsonpath_mini: "data.0.individual.0.available_quota", test: "exists"}
-        - extract_test:               {jsonpath_mini: "data.0.individual.0.total_quota", test: "exists"}
-        - extract_test:               {jsonpath_mini: "data.0.individual.0.title", test: "exists"}
-        - extract_test:               {jsonpath_mini: "data.0.individual.0.description", test: "exists"}
-        - compare:                    {jsonpath_mini: "data.0.group.0.id", comparator: "str_eq", expected: '118'}
-        - extract_test:               {jsonpath_mini: "data.0.group.0.expire_at", test: "exists"}
-        - extract_test:               {jsonpath_mini: "data.0.group.0.created_at", test: "exists"}
-        - compare:                    {jsonpath_mini: "data.0.group.0.is_expired", comparator: "eq", expected: false}
-        - extract_test:               {jsonpath_mini: "data.0.group.0.available_quota", test: "exists"}
-        - extract_test:               {jsonpath_mini: "data.0.group.0.total_quota", test: "exists"}
-        - extract_test:               {jsonpath_mini: "data.0.group.0.title", test: "exists"}
-        - extract_test:               {jsonpath_mini: "data.0.group.0.description", test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.0.available_count", test: "exists"}
+        - compare:                    {jsonpath_mini: "data.0.avatar", comparator: "str_eq", expected: 'https://sofasoda-uat.s3.amazonaws.com/uploads/admin/avatar/11/images.jpeg'}
+        - extract_test:               {jsonpath_mini: "data.0.description", test: "exists"}
+        - extract_test:               {jsonpath_mini: "data.0.expire_at", test: "exists"}
+        - compare:                    {jsonpath_mini: "data.0.id", comparator: "str_eq", expected: '118'}
+        - compare:                    {jsonpath_mini: "data.0.time", comparator: "str_eq", expected: '30'}
+        - compare:                    {jsonpath_mini: "data.0.title", comparator: "str_eq", expected: '不迷惘人生選擇學：團體討論課'}
 
 - test:
-    - group:                          "UAT Sofasoda group class testsuite"
+    - group:                          "UAT Sofasoda bookings testsuite"
     - name:                           "Appointment"
-    - url:                            {template: "api/me/quotas/$FirstGroupClass/appointment_type"}
+    - url:                            {template: "api/me/quotas/$FirstQuota/appointment_type"}
     - method:                         "GET"
     - body:                           {template: '{"lang": "zh-TW"}'}
     - headers:                        {template: {'Content-Type': 'application/json','authorization': 'Bearer $AuthToken', 'sofasoda-user-agent': '{"device_id":"$DeviceID","os":"MacOS","platform":"web"}','User-Agent': '$UserAgent'}}
 
     - validators:
-        - compare:                    {jsonpath_mini: "data.user.id", comparator: "str_eq", expected: {template: "$Userid"}}
+        - compare:                    {jsonpath_mini: "data.appointment_type", comparator: "str_eq", expected: '11319517'}
+        - compare:                    {jsonpath_mini: "data.owner_id", comparator: eq, expected: 18259692}
         - compare:                    {jsonpath_mini: "data.user.email", comparator: "eq", expected: {template: "$Useremail"}}
-        - extract_test:               {jsonpath_mini: "data.user.phone", test: "not_exists"}
         - extract_test:               {jsonpath_mini: "data.user.first_name", test: "not_exists"}
+        - compare:                    {jsonpath_mini: "data.user.id", comparator: eq, expected: 140}
+        - extract_test:               {jsonpath_mini: "data.user.phone", test: "not_exists"}
         - extract_test:               {jsonpath_mini: "data.user.last_name", test: "not_exists"}
-        - extract_test:               {jsonpath_mini: "data.appointment_type", test: "exists"}
-        - extract_test:               {jsonpath_mini: "data.owner_id", test: "exists"}
 
 
 ####################################################################
-############## UAT Sofasoda group class testsuite END ##############
+############## UAT Sofasoda bookings testsuite END ##############
 ####################################################################
