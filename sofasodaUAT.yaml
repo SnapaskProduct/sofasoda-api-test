@@ -195,7 +195,7 @@
         - extract_test:               {jsonpath_mini: "data.0.expire_at", test: "exists"}
         - compare:                    {jsonpath_mini: "data.0.id", comparator: "str_eq", expected: '118'}
         - compare:                    {jsonpath_mini: "data.0.time", comparator: "str_eq", expected: '30'}
-        - compare:                    {jsonpath_mini: "data.0.title", comparator: "str_eq", expected: '不迷惘人生選擇學：團體討論課'}
+        - compare:                    {jsonpath_mini: "data.0.title", comparator: "eq", expected: "不迷惘人生選擇學：團體討論課"}
 
 - test:
     - group:                          "UAT Sofasoda bookings testsuite"
