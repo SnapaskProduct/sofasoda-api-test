@@ -59,10 +59,6 @@
         - extract_test:               {jsonpath_mini: "data.1.name",  test: "exists"}
         - extract_test:               {jsonpath_mini: "data.2.id",  test: "exists"}
         - extract_test:               {jsonpath_mini: "data.2.name",  test: "exists"}
-        - extract_test:               {jsonpath_mini: "data.3.id",  test: "exists"}
-        - extract_test:               {jsonpath_mini: "data.3.name",  test: "exists"}
-        - extract_test:               {jsonpath_mini: "data.4.id",  test: "exists"}
-        - extract_test:               {jsonpath_mini: "data.4.name",  test: "exists"}
 
 ######################################################################
 ############## UAT Sofasoda without login testsuite END ##############
