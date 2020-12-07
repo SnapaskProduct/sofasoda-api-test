@@ -16,7 +16,7 @@
     - url:                            "api/launches"
     - method:                         "GET"
     - body:                           {template: '{"lang": "zh-TW"}'}
-    - headers:                        {template: {'Content-Type': 'application/json','sofasoda-user-agent': '{"device_id":"$DeviceID","os":"MacOS","platform":"web"}','User-Agent': '$UserAgent'}}
+    - headers:                        {template: {'Accept': 'application/json','Content-Type': 'application/json','sofasoda-user-agent': '{"device_id":"$DeviceID","os":"MacOS","platform":"web"}','User-Agent': '$UserAgent'}}
     - validators:
         - compare:                    {jsonpath_mini: "data.languages.0.name", comparator: "eq", expected: 'English'}
         - compare:                    {jsonpath_mini: "data.languages.0.lang", comparator: "eq", expected: 'en'}
@@ -51,7 +51,7 @@
     - url:                            "api/courses"
     - method:                         "GET"
     - body:                           {template: '{"lang": "zh-TW"}'}
-    - headers:                        {template: {'Content-Type': 'application/json','sofasoda-user-agent': '{"device_id":"$DeviceID","os":"MacOS","platform":"web"}','User-Agent': '$UserAgent'}}
+    - headers:                        {template: {'Accept': 'application/json','Content-Type': 'application/json','sofasoda-user-agent': '{"device_id":"$DeviceID","os":"MacOS","platform":"web"}','User-Agent': '$UserAgent'}}
     - validators:
         - extract_test:               {jsonpath_mini: "data.0.id",  test: "exists"}
         - extract_test:               {jsonpath_mini: "data.0.name",  test: "exists"}
@@ -73,7 +73,7 @@
     - url:                            "api/sessions"
     - method:                         "POST"
     - body:                           {template: '{"lang": "zh-TW", "user": {"email": "$Useremail", "password": "$Password"} }' }
-    - headers:                        {template: {'Content-Type': 'application/json','sofasoda-user-agent': '{"device_id":"$DeviceID","os":"MacOS","platform":"web"}','User-Agent': '$UserAgent'}}
+    - headers:                        {template: {'Accept': 'application/json','Content-Type': 'application/json','sofasoda-user-agent': '{"device_id":"$DeviceID","os":"MacOS","platform":"web"}','User-Agent': '$UserAgent'}}
     - extract_binds:
         - 'AuthToken':                {'jsonpath_mini': 'data.auth_token'}
     - validators:
@@ -95,7 +95,7 @@
     - url:                            "api/me/learning_courses"
     - method:                         "GET"
     - body:                           {template: '{"lang": "zh-TW"}'}
-    - headers:                        {template: {'Content-Type': 'application/json','authorization': 'Bearer $AuthToken', 'sofasoda-user-agent': '{"device_id":"$DeviceID","os":"MacOS","platform":"web"}','User-Agent': '$UserAgent'}}
+    - headers:                        {template: {'Accept': 'application/json','Content-Type': 'application/json','authorization': 'Bearer $AuthToken', 'sofasoda-user-agent': '{"device_id":"$DeviceID","os":"MacOS","platform":"web"}','User-Agent': '$UserAgent'}}
     - validators:
         - compare:                    {jsonpath_mini: "data.0.course_id", comparator: "eq", expected: 1}
         - compare:                    {jsonpath_mini: "data.0.course_title", comparator: "eq", expected: "不迷惘人生選擇學"}
@@ -120,7 +120,7 @@
     - url:                            "api/courses"
     - method:                         "GET"
     - body:                           {template: '{"lang": "zh-TW","recommended": "true"}'}
-    - headers:                        {template: {'Content-Type': 'application/json','authorization': 'Bearer $AuthToken', 'sofasoda-user-agent': '{"device_id":"$DeviceID","os":"MacOS","platform":"web"}','User-Agent': '$UserAgent'}}
+    - headers:                        {template: {'Accept': 'application/json','Content-Type': 'application/json','authorization': 'Bearer $AuthToken', 'sofasoda-user-agent': '{"device_id":"$DeviceID","os":"MacOS","platform":"web"}','User-Agent': '$UserAgent'}}
     - validators:
         - compare:                    {jsonpath_mini: "data.0.id", comparator: "eq", expected: 1}
         - compare:                    {jsonpath_mini: "data.0.name", comparator: "eq", expected: "不迷惘人生選擇學"}
@@ -131,7 +131,7 @@
     - url:                            "api/me/learning_courses/1"
     - method:                         "GET"
     - body:                           {template: '{"lang": "zh-TW","recommended": "true"}'}
-    - headers:                        {template: {'Content-Type': 'application/json','authorization': 'Bearer $AuthToken', 'sofasoda-user-agent': '{"device_id":"$DeviceID","os":"MacOS","platform":"web"}','User-Agent': '$UserAgent'}}
+    - headers:                        {template: {'Accept': 'application/json','Content-Type': 'application/json','authorization': 'Bearer $AuthToken', 'sofasoda-user-agent': '{"device_id":"$DeviceID","os":"MacOS","platform":"web"}','User-Agent': '$UserAgent'}}
     - extract_binds:
         - 'FirstLesson':              {'jsonpath_mini': 'data.course.chapters.0.lessons.0.id'}
     - validators:
@@ -162,7 +162,7 @@
     - url:                            {template: "api/me/lessons/$FirstLesson/play"}
     - method:                         "POST"
     - body:                           {template: '{"lang": "zh-TW"}'}
-    - headers:                        {template: {'Content-Type': 'application/json','authorization': 'Bearer $AuthToken', 'sofasoda-user-agent': '{"device_id":"$DeviceID","os":"MacOS","platform":"web"}','User-Agent': '$UserAgent'}}
+    - headers:                        {template: {'Accept': 'application/json','Content-Type': 'application/json','authorization': 'Bearer $AuthToken', 'sofasoda-user-agent': '{"device_id":"$DeviceID","os":"MacOS","platform":"web"}','User-Agent': '$UserAgent'}}
 
     - validators:
         - extract_test:               {jsonpath_mini: "data.otp", test: "exists"}
@@ -181,7 +181,7 @@
     - url:                            "api/me/quotas"
     - method:                         "GET"
     - body:                           {template: '{"lang": "zh-TW"}'}
-    - headers:                        {template: {'Content-Type': 'application/json','authorization': 'Bearer $AuthToken', 'sofasoda-user-agent': '{"device_id":"$DeviceID","os":"MacOS","platform":"web"}','User-Agent': '$UserAgent'}}
+    - headers:                        {template: {'Accept': 'application/json','Content-Type': 'application/json','authorization': 'Bearer $AuthToken', 'sofasoda-user-agent': '{"device_id":"$DeviceID","os":"MacOS","platform":"web"}','User-Agent': '$UserAgent'}}
     - extract_binds:
         - 'FirstQuota':               {'jsonpath_mini': 'data.0.id'}
     - validators:
@@ -199,7 +199,7 @@
     - url:                            {template: "api/me/quotas/$FirstQuota/appointment_type"}
     - method:                         "GET"
     - body:                           {template: '{"lang": "zh-TW"}'}
-    - headers:                        {template: {'Content-Type': 'application/json','authorization': 'Bearer $AuthToken', 'sofasoda-user-agent': '{"device_id":"$DeviceID","os":"MacOS","platform":"web"}','User-Agent': '$UserAgent'}}
+    - headers:                        {template: {'Accept': 'application/json','Content-Type': 'application/json','authorization': 'Bearer $AuthToken', 'sofasoda-user-agent': '{"device_id":"$DeviceID","os":"MacOS","platform":"web"}','User-Agent': '$UserAgent'}}
 
     - validators:
         - compare:                    {jsonpath_mini: "data.appointment_type", comparator: "str_eq", expected: '11319517'}
